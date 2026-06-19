@@ -3,542 +3,1217 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-<title>塔罗牌</title>
+<title>Mystic Vision Tarot · 灵启万物</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Cormorant+Garamond:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script async src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js"></script>
+<script async src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js"></script>
 <style>
+/* ==================== CSS Variables ==================== */
+:root{
+  --mystic-gold:#d4af37;
+  --mystic-purple:#4b0082;
+  --mystic-deep:#050508;
+  --panel-bg:rgba(10,8,20,.85);
+  --glass-border:rgba(212,175,55,.12);
+  --text-primary:#e5e7eb;
+  --text-dim:#9ca3af;
+}
+
+/* ==================== Base & Body ==================== */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{
-  background:#0a0a0f;color:#e0d8c8;font-family:"Noto Serif SC","STSong",serif;
+  background:radial-gradient(circle at center,#1a1a3a 0%,#0d0d1a 60%,var(--mystic-deep) 100%);
+  color:var(--text-primary);font-family:'Inter',sans-serif;
   overflow-x:hidden;min-height:100vh;-webkit-tap-highlight-color:transparent;
   user-select:none;-webkit-user-select:none;
 }
-canvas#bg{position:fixed;top:0;left:0;z-index:0;pointer-events:none}
-/* 摄像头隐藏 */
-#cam{position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;z-index:-1}
-#gesture-status{position:fixed;top:12px;right:16px;z-index:100;font-size:11px;color:#665;opacity:0;transition:opacity .4s}
-#gesture-status.active{opacity:.7}
-.container{position:relative;z-index:1;max-width:100%;margin:0 auto;padding:16px 0}
-h1{text-align:center;font-size:clamp(20px,3vw,28px);letter-spacing:.15em;color:#c9a84c;margin:8px 0 4px}
-.subtitle{text-align:center;font-size:12px;color:#665;margin-bottom:18px}
-/* 牌组分组行 */
-.deck-row{margin:0 0 18px}
-.deck-row-label{padding:0 20px 6px;font-size:13px;letter-spacing:.08em;font-weight:bold}
+.font-serif-mystic{font-family:'Cormorant Garamond',serif}
+.font-cinzel{font-family:'Cinzel',serif}
+
+/* ==================== Stars Background ==================== */
+#stars-field{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  pointer-events:none;z-index:0;background:transparent;
+}
+.star{
+  position:absolute;background:#fff;border-radius:50%;
+  opacity:.3;animation:twinkle var(--dur) infinite ease-in-out;
+}
+@keyframes twinkle{
+  0%,100%{opacity:.3;transform:scale(1)}
+  50%{opacity:1;transform:scale(1.3)}
+}
+
+/* ==================== Fog / Aurora ==================== */
+#fog-container{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  pointer-events:none;z-index:1;opacity:.35;filter:blur(80px);
+}
+.fog-blob{
+  position:absolute;border-radius:50%;
+  background:radial-gradient(circle,var(--mystic-purple) 0%,transparent 70%);
+  animation:drift 40s infinite alternate ease-in-out;
+}
+.fog-blob:nth-child(2){
+  background:radial-gradient(circle,#2a0e4a 0%,transparent 70%);animation-delay:-8s;
+}
+@keyframes drift{
+  from{transform:translate(-30%,-30%) scale(1)}
+  to{transform:translate(30%,30%) scale(1.8)}
+}
+
+/* ==================== Camera Hidden ==================== */
+#cam{
+  position:fixed;top:0;left:0;width:1px;height:1px;
+  opacity:0;pointer-events:none;z-index:-1;
+}
+
+/* ==================== Main App Container ==================== */
+#app{position:relative;z-index:2;max-width:900px;margin:0 auto;padding:20px 16px 40px}
+
+/* ==================== Header ==================== */
+.app-title{
+  text-align:center;font-family:'Cinzel',serif;
+  font-size:clamp(24px,4vw,36px);font-weight:900;
+  letter-spacing:.2em;color:var(--mystic-gold);
+  text-shadow:0 0 30px rgba(212,175,55,.4),0 0 60px rgba(212,175,55,.15);
+  margin:16px 0 4px;
+}
+.app-subtitle{
+  text-align:center;font-family:'Cormorant Garamond',serif;font-style:italic;
+  font-size:14px;color:#7a6e9e;letter-spacing:.1em;margin-bottom:20px;
+}
+.app-subtitle.select-mode{display:none}
+
+/* ==================== Phase: Welcome ==================== */
+#welcome-screen{text-align:center;padding:20px 0}
+#welcome-screen h2{
+  font-family:'Cormorant Garamond',serif;font-size:22px;
+  color:#c9b8e8;font-weight:400;margin-bottom:8px;
+}
+#welcome-screen h3{
+  font-size:14px;color:#7a6e9e;font-weight:300;margin-bottom:24px;
+}
+.question-input-wrap{
+  position:relative;max-width:480px;margin:0 auto 20px;
+}
+#question-input{
+  width:100%;padding:16px 20px;border-radius:24px;border:2px solid var(--glass-border);
+  background:var(--panel-bg);color:var(--text-primary);font-size:16px;
+  font-family:'Inter',sans-serif;outline:none;transition:border-color .3s,box-shadow .3s;
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+}
+#question-input:focus{
+  border-color:rgba(212,175,55,.4);
+  box-shadow:0 0 30px rgba(212,175,55,.1),inset 0 0 15px rgba(212,175,55,.05);
+}
+#question-input::placeholder{color:#555;font-size:14px}
+
+/* ASCEND Button */
+.ascend-btn{
+  display:inline-block;padding:14px 48px;border-radius:30px;
+  border:2px solid var(--mystic-gold);background:transparent;
+  color:var(--mystic-gold);font-family:'Cinzel',serif;font-size:18px;
+  font-weight:700;letter-spacing:.15em;cursor:pointer;
+  box-shadow:0 0 25px rgba(212,175,55,.15),inset 0 0 15px rgba(212,175,55,.1);
+  transition:all .35s ease;position:relative;overflow:hidden;
+}
+.ascend-btn:hover{
+  box-shadow:0 0 50px rgba(212,175,55,.4),inset 0 0 25px rgba(212,175,55,.2);
+  transform:translateY(-2px);
+}
+.ascend-btn:active{transform:scale(.97)}
+.ascend-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+.ascend-btn::after{
+  content:'';position:absolute;inset:-2px;border-radius:30px;
+  background:conic-gradient(from 0deg,transparent,var(--mystic-gold),transparent,var(--mystic-gold),transparent);
+  opacity:0;transition:opacity .5s;z-index:-1;animation:spin 3s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ascend-btn.loading::after{opacity:.15}
+
+.init-status{
+  margin-top:12px;font-size:12px;color:#555;letter-spacing:.05em;
+}
+
+/* ==================== Phase: Selection ==================== */
+#selection-screen{display:none;padding:10px 0}
+.selection-status{
+  text-align:center;font-size:13px;color:#c9b8e8;
+  padding:6px 20px;margin-bottom:10px;letter-spacing:.06em;
+  min-height:24px;
+}
+.fist-progress-bar{
+  width:200px;height:4px;margin:0 auto 8px;border-radius:2px;
+  background:rgba(255,255,255,.08);overflow:hidden;
+}
+.fist-progress-fill{
+  height:100%;background:var(--mystic-gold);border-radius:2px;
+  width:0;transition:width .15s linear;
+  box-shadow:0 0 8px rgba(212,175,55,.6);
+}
+
+/* ==================== 3D Carousel ==================== */
+.carousel-stage{
+  position:relative;width:100%;height:280px;
+  perspective:1200px;perspective-origin:50% 50%;
+  margin:0 auto 16px;
+}
+.carousel-track{
+  position:absolute;top:50%;left:50%;
+  transform-style:preserve-3d;
+  width:0;height:0;
+}
+.carousel-card{
+  position:absolute;
+  width:130px;height:200px;
+  transform-style:preserve-3d;
+  transition:all .35s cubic-bezier(.25,.46,.45,.94);
+  cursor:pointer;-webkit-tap-highlight-color:transparent;
+}
+.carousel-card-inner{
+  position:relative;width:100%;height:100%;
+  transform-style:preserve-3d;
+  border-radius:12px;
+}
+.carousel-card-face{
+  position:absolute;inset:0;border-radius:12px;
+  backface-visibility:hidden;-webkit-backface-visibility:hidden;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  overflow:hidden;
+}
+/* Card Back */
+.card-back{
+  background:linear-gradient(135deg,#1a1040,#0d0d2a);
+  border:2px solid rgba(212,175,55,.3);
+  box-shadow:0 4px 24px rgba(0,0,0,.5);
+  z-index:1;
+}
+.card-back-pattern{
+  width:80%;height:80%;border:1px solid rgba(212,175,55,.15);
+  border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+}
+.card-back-pattern .eye{
+  width:36px;height:36px;border:1px solid rgba(212,175,55,.4);border-radius:50%;
+  position:relative;
+}
+.card-back-pattern .eye::after{
+  content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:8px;height:8px;background:var(--mystic-gold);border-radius:50%;
+  box-shadow:0 0 12px rgba(212,175,55,.6);
+}
+.card-back-pattern .line{
+  width:60%;height:1px;background:rgba(212,175,55,.2);margin:8px 0;
+}
+/* Card Front */
+.card-front{
+  background:linear-gradient(135deg,#1e1048,#0a0820);
+  border:2px solid var(--mystic-gold);
+  box-shadow:0 4px 30px rgba(212,175,55,.2);
+  transform:rotateY(180deg);
+  padding:12px;
+}
+.card-front .cf-symbol{font-size:36px;margin-bottom:4px}
+.card-front .cf-name{
+  font-family:'Cinzel',serif;font-size:12px;color:var(--mystic-gold);
+  text-align:center;letter-spacing:.1em;
+}
+.card-front .cf-nameZh{font-size:14px;color:#ddd;margin-top:4px}
+
+/* Flipped card */
+.carousel-card.flipped .carousel-card-inner{animation:cardFlip .8s ease forwards}
+@keyframes cardFlip{
+  0%{transform:rotateY(0)}
+  100%{transform:rotateY(180deg)}
+}
+
+/* Active card glow */
+.carousel-card.active-card .card-back{
+  border-color:var(--mystic-gold);
+  box-shadow:0 0 35px rgba(212,175,55,.35),0 0 70px rgba(212,175,55,.1);
+}
+
+/* ==================== Deck Rows (4 rows) ==================== */
+.deck-rows{margin-top:10px}
+.deck-row{margin:0 0 14px}
+.deck-row-label{
+  padding:0 12px 6px;font-size:12px;letter-spacing:.08em;font-weight:700;
+  display:flex;align-items:center;gap:6px;
+}
+.deck-row-label::before{content:'';width:8px;height:8px;border-radius:50%;display:inline-block}
 .deck-row-label.gold{color:#c9a84c}
-.deck-row-label.red{color:#c0392b}
-.deck-row-label.blue{color:#2980b9}
-.deck-row-label.gray{color:#7f8c8d}
-.deck-row-label.green{color:#27ae60}
+.deck-row-label.gold::before{background:#c9a84c;box-shadow:0 0 6px #c9a84c}
+.deck-row-label.red{color:#e74c3c}
+.deck-row-label.red::before{background:#e74c3c;box-shadow:0 0 6px #e74c3c}
+.deck-row-label.blue{color:#5dade2}
+.deck-row-label.blue::before{background:#5dade2;box-shadow:0 0 6px #5dade2}
+.deck-row-label.gray{color:#95a5a6}
+.deck-row-label.gray::before{background:#95a5a6;box-shadow:0 0 6px #95a5a6}
+.deck-row-label.green{color:#2ecc71}
+.deck-row-label.green::before{background:#2ecc71;box-shadow:0 0 6px #2ecc71}
+
 .deck-scroll{
-  display:flex;gap:10px;overflow-x:auto;overflow-y:hidden;
-  padding:8px 20px 14px;scroll-behavior:smooth;
+  display:flex;gap:8px;overflow-x:auto;overflow-y:hidden;
+  padding:6px 12px 10px;scroll-behavior:smooth;
   -webkit-overflow-scrolling:touch;touch-action:pan-x;
   scrollbar-width:thin;scrollbar-color:#333 transparent;
 }
 .deck-scroll::-webkit-scrollbar{height:4px}
-.deck-scroll::-webkit-scrollbar-thumb{background:#444;border-radius:2px}
-/* 单张牌 */
-.card{
-  flex:0 0 auto;width:clamp(90px,13vw,120px);height:clamp(144px,20vw,192px);
-  border-radius:10px;position:relative;cursor:pointer;
-  transition:transform .25s,box-shadow .25s,border-color .25s;
-  border:3px solid #444;background:#1a1a2e;
-  display:flex;align-items:center;justify-content:center;
-  font-size:15px;overflow:hidden;
+.deck-scroll::-webkit-scrollbar-track{background:rgba(0,0,0,.2)}
+.deck-scroll::-webkit-scrollbar-thumb{background:rgba(212,175,55,.15);border-radius:10px}
+.deck-scroll::-webkit-scrollbar-thumb:hover{background:rgba(212,175,55,.3)}
+
+/* Mini card in deck rows */
+.mini-card{
+  flex:0 0 auto;width:64px;height:96px;border-radius:8px;
+  cursor:pointer;position:relative;transition:all .25s;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:#161630;border:2px solid #333;overflow:hidden;
 }
-.card:hover{transform:translateY(-4px);box-shadow:0 8px 24px rgba(0,0,0,.5)}
-.card:active{transform:scale(.96)}
-.card.highlight{transform:scale(1.08);box-shadow:0 0 20px rgba(201,168,76,.5);z-index:5}
-/* 边框颜色 */
-.card.arcana{border-color:#c9a84c}
-.card.wands{border-color:#c0392b}
-.card.cups{border-color:#2980b9}
-.card.swords{border-color:#7f8c8d}
-.card.pentacles{border-color:#27ae60}
-.card .card-inner{text-align:center;padding:8px}
-.card .card-name{font-size:clamp(10px,1.4vw,13px);color:#ccc;margin-top:6px;line-height:1.3}
-.card .card-symbol{font-size:clamp(24px,4vw,40px)}
-/* 长按进度 */
-.longpress-ring{position:absolute;top:4px;right:4px;width:22px;height:22px;pointer-events:none;opacity:0;transition:opacity .15s}
-.longpress-ring.active{opacity:1}
-.longpress-ring circle{fill:none;stroke:#c9a84c;stroke-width:3;stroke-dasharray:56.55;stroke-dashoffset:56.55;transition:none}
-/* 引导文字 */
-.guide-text{text-align:center;color:#555;font-size:13px;margin:10px 0 20px;letter-spacing:.05em}
-/* 结果弹窗 */
-.overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:200;
-  display:none;align-items:center;justify-content:center}
-.overlay.show{display:flex}
-.result-card{
-  background:#1a1a2e;border:1px solid #333;border-radius:16px;
-  padding:24px;max-width:500px;width:92%;max-height:85vh;
-  overflow-y:auto;position:relative;animation:popIn .35s ease
+.mini-card:hover{transform:translateY(-3px);box-shadow:0 6px 16px rgba(0,0,0,.5)}
+.mini-card:active{transform:scale(.95)}
+.mini-card.active{border-color:var(--mystic-gold);box-shadow:0 0 16px rgba(212,175,55,.3);transform:scale(1.06)}
+.mini-card.arcana{border-color:rgba(201,168,76,.4)}
+.mini-card.wands{border-color:rgba(231,76,60,.4)}
+.mini-card.cups{border-color:rgba(93,173,226,.4)}
+.mini-card.swords{border-color:rgba(149,165,166,.4)}
+.mini-card.pentacles{border-color:rgba(46,204,113,.4)}
+.mini-card .mc-symbol{font-size:20px}
+.mini-card .mc-name{font-size:9px;color:#888;margin-top:4px;text-align:center;line-height:1.2}
+
+/* ==================== Phase: Reveal & Chat ==================== */
+#reveal-screen{display:none;padding:0}
+.reveal-card-display{
+  display:flex;flex-direction:column;align-items:center;
+  padding:16px;margin-bottom:16px;
 }
-@keyframes popIn{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
-.result-card h3{color:#c9a84c;text-align:center;margin-bottom:8px;font-size:20px}
-.result-card .card-desc{margin-top:12px;font-size:14px;line-height:1.7;color:#bbb}
-.result-card .close-btn{
-  position:sticky;top:0;float:right;background:none;border:1px solid #555;
-  color:#aaa;padding:4px 14px;border-radius:20px;cursor:pointer;font-size:13px;
-  z-index:5
+.reveal-card-display .flip-result-symbol{font-size:64px;margin-bottom:8px}
+.reveal-card-display .flip-result-name{
+  font-family:'Cinzel',serif;font-size:22px;color:var(--mystic-gold);
+  letter-spacing:.12em;text-align:center;
 }
-.result-card .close-btn:hover{color:#fff;border-color:#888}
-/* 牌背翻转动画 */
-.card.flipping{animation:flipAnim .6s ease}
-@keyframes flipAnim{
-  0%{transform:rotateY(0)}
-  50%{transform:rotateY(90deg) scale(1.05)}
-  100%{transform:rotateY(0) scale(1)}
+.reveal-card-display .flip-result-nameZh{font-size:15px;color:#ccc;margin:4px 0 0}
+.reveal-status{
+  text-align:center;font-size:13px;color:#7a6e9e;margin:8px 0 16px;
+  letter-spacing:.05em;
 }
-/* 洗牌动画 */
-.card.shuffling{animation:shuffle .3s ease}
-@keyframes shuffle{
-  0%,100%{transform:translateY(0)}
-  25%{transform:translateY(-14px) rotate(-3deg)}
-  75%{transform:translateY(-14px) rotate(3deg)}
+
+/* Glass Panel */
+.glass-panel{
+  background:var(--panel-bg);border:1px solid var(--glass-border);
+  border-radius:16px;padding:20px;backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+  box-shadow:0 8px 32px rgba(0,0,0,.4);
 }
-/* 响应式 */
-@media(max-width:768px){
-  .card{width:clamp(80px,18vw,105px);height:clamp(128px,27vw,168px)}
-  .deck-scroll{gap:8px;padding:6px 12px 12px}
+
+/* Chat Area */
+#chat-container{max-width:700px;margin:0 auto}
+#chat-messages{
+  max-height:420px;overflow-y:auto;padding-right:8px;margin-bottom:12px;
+  scrollbar-width:thin;scrollbar-color:rgba(212,175,55,.15) transparent;
 }
-@media(max-width:480px){
-  .card{width:clamp(72px,22vw,90px);height:clamp(115px,33vw,144px)}
-  .deck-scroll{gap:6px;padding:4px 8px 10px}
+#chat-messages::-webkit-scrollbar{width:5px}
+#chat-messages::-webkit-scrollbar-track{background:rgba(0,0,0,.2)}
+#chat-messages::-webkit-scrollbar-thumb{background:rgba(212,175,55,.2);border-radius:10px}
+#chat-messages::-webkit-scrollbar-thumb:hover{background:rgba(212,175,55,.4)}
+
+.chat-msg{margin-bottom:16px}
+.chat-msg.user{text-align:right}
+.chat-msg.user .msg-bubble{
+  display:inline-block;background:rgba(212,175,55,.1);
+  border:1px solid rgba(212,175,55,.15);border-radius:16px 4px 16px 16px;
+  padding:10px 16px;max-width:80%;text-align:left;font-size:14px;line-height:1.6;
+}
+.chat-msg.assistant .msg-bubble{
+  background:rgba(75,0,130,.1);border:1px solid rgba(147,112,219,.15);
+  border-radius:4px 16px 16px 16px;padding:14px 18px;max-width:90%;
+  font-size:14px;line-height:1.8;
+}
+
+/* Markdown in chat */
+.msg-bubble h1,.msg-bubble h2,.msg-bubble h3{
+  color:var(--mystic-gold);font-family:'Cinzel',serif;
+  letter-spacing:.1em;text-shadow:0 0 12px rgba(212,175,55,.3);
+  margin:1.2em 0 .5em;
+}
+.msg-bubble h1:first-child,.msg-bubble h2:first-child,.msg-bubble h3:first-child{margin-top:0}
+.msg-bubble strong{color:#fcd34d;font-weight:600}
+.msg-bubble p{line-height:1.8;margin-bottom:.8em}
+.msg-bubble blockquote{
+  border-left:3px solid var(--mystic-gold);background:rgba(212,175,55,.05);
+  padding:.8rem 1.2rem;font-style:italic;border-radius:0 12px 12px 0;margin:.8em 0;
+}
+.msg-bubble ul,.msg-bubble ol{padding-left:1.5em;margin:.6em 0}
+.msg-bubble li{margin-bottom:.3em}
+.msg-bubble code{
+  background:rgba(255,255,255,.06);padding:2px 6px;border-radius:4px;font-size:.9em;
+}
+.msg-bubble pre{
+  background:rgba(0,0,0,.3);padding:12px;border-radius:8px;overflow-x:auto;margin:.8em 0;
+}
+
+/* Thinking animation */
+.thinking-dots{display:flex;gap:6px;padding:8px 0}
+.thinking-dots span{
+  width:8px;height:8px;background:var(--mystic-gold);border-radius:50%;
+  animation:thinkingBounce 1.2s infinite ease-in-out;
+}
+.thinking-dots span:nth-child(2){animation-delay:.15s}
+.thinking-dots span:nth-child(3){animation-delay:.3s}
+@keyframes thinkingBounce{
+  0%,80%,100%{transform:scale(.6);opacity:.4}
+  40%{transform:scale(1);opacity:1}
+}
+
+/* Chat input */
+.chat-input-row{display:flex;gap:8px;margin-top:8px}
+#chat-input{
+  flex:1;padding:12px 16px;border-radius:24px;
+  border:1px solid var(--glass-border);background:rgba(10,8,20,.6);
+  color:var(--text-primary);font-size:14px;outline:none;
+  font-family:'Inter',sans-serif;
+}
+#chat-input:focus{border-color:rgba(212,175,55,.3)}
+#chat-send{
+  padding:12px 22px;border-radius:24px;border:1px solid var(--mystic-gold);
+  background:transparent;color:var(--mystic-gold);
+  font-family:'Cinzel',serif;font-size:13px;font-weight:700;cursor:pointer;
+  letter-spacing:.08em;transition:all .3s;
+}
+#chat-send:hover{background:rgba(212,175,55,.1);box-shadow:0 0 16px rgba(212,175,55,.2)}
+#chat-send:disabled{opacity:.4;cursor:not-allowed}
+
+/* Error */
+.error-msg{
+  text-align:center;padding:14px;color:#e74c3c;
+  background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.2);
+  border-radius:12px;font-size:13px;margin:8px 0;
+}
+
+/* New reading button */
+.new-reading-btn{
+  display:inline-block;padding:10px 28px;border-radius:24px;
+  border:1px solid rgba(147,112,219,.4);background:transparent;
+  color:#c9b8e8;font-family:'Cinzel',serif;font-size:12px;
+  letter-spacing:.1em;cursor:pointer;transition:all .3s;
+  margin-top:16px;
+}
+.new-reading-btn:hover{
+  border-color:var(--mystic-gold);color:var(--mystic-gold);
+  box-shadow:0 0 20px rgba(212,175,55,.15);
+}
+
+/* ==================== Responsive ==================== */
+@media(max-width:600px){
+  #app{padding:12px 8px 30px}
+  .carousel-stage{height:220px;margin-bottom:10px}
+  .carousel-card{width:100px;height:156px}
+  .carousel-card-face{border-radius:10px}
+  .card-front .cf-symbol{font-size:28px}
+  .card-front .cf-name{font-size:10px}
+  .card-front .cf-nameZh{font-size:12px}
+  .card-back-pattern .eye{width:28px;height:28px}
+  .mini-card{width:52px;height:78px;border-radius:6px}
+  .mini-card .mc-symbol{font-size:16px}
+  .mini-card .mc-name{font-size:8px}
+  .deck-scroll{gap:6px;padding:4px 8px 8px}
+  #chat-messages{max-height:320px}
+  .reveal-card-display .flip-result-symbol{font-size:48px}
 }
 </style>
-<!-- CDN: async加载，不阻塞DOM渲染 -->
-<script async src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js"></script>
-<script async src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js"></script>
 </head>
 <body>
-<canvas id="bg"></canvas>
-<video id="cam" autoplay playsinline></video>
-<div id="gesture-status">手势已激活</div>
-<div class="container">
-<h1>✨ 塔罗牌 ✨</h1>
-<p class="subtitle">双击 / 长按 / 握拳3秒 抽牌</p>
-<div id="deck-container"></div>
-<p class="guide-text">双击或长按牌面抽牌 · 手势识别可用时握拳3秒触发</p>
+<!-- Background Effects -->
+<div id="stars-field"></div>
+<div id="fog-container">
+  <div class="fog-blob" style="width:1000px;height:1000px;top:-300px;left:-300px;opacity:.3"></div>
+  <div class="fog-blob" style="width:800px;height:800px;bottom:-200px;right:-200px"></div>
 </div>
-<div class="overlay" id="overlay">
-  <div class="result-card" id="result-card">
-    <button class="close-btn" onclick="closeResult()">关闭</button>
-    <h3 id="result-title"></h3>
-    <div class="card-desc" id="result-desc"></div>
+
+<!-- Hidden Camera -->
+<video id="cam" autoplay playsinline></video>
+
+<!-- Main App -->
+<div id="app">
+  <!-- Header -->
+  <div class="app-title">MYSTIC VISION</div>
+  <div class="app-subtitle" id="header-sub">Whispers of the Ancient Cosmos</div>
+
+  <!-- Phase 1: Welcome -->
+  <div id="welcome-screen">
+    <h2 class="font-serif-mystic">灵启万物</h2>
+    <h3>Engrave Thy Inquiry · 刻录你的疑惑</h3>
+    <div class="question-input-wrap">
+      <input type="text" id="question-input" placeholder="倾诉你的困惑，星辰将为你指引方向..." maxlength="200">
+    </div>
+    <button class="ascend-btn" id="ascend-btn" onclick="startDivination()">A S C E N D</button>
+    <div class="init-status" id="init-status">正在引导星辰之力...</div>
+  </div>
+
+  <!-- Phase 2: Selection -->
+  <div id="selection-screen">
+    <div class="selection-status" id="selection-status">挥动手部移动 · 握拳3秒翻开命运</div>
+    <div class="fist-progress-bar"><div class="fist-progress-fill" id="fist-progress-fill"></div></div>
+    <div class="carousel-stage" id="carousel-stage">
+      <div class="carousel-track" id="carousel-track"></div>
+    </div>
+    <div class="deck-rows" id="deck-rows"></div>
+  </div>
+
+  <!-- Phase 3: Reveal & Chat -->
+  <div id="reveal-screen">
+    <div class="reveal-card-display" id="reveal-card-display"></div>
+    <div class="reveal-status" id="reveal-status">星象已现 · 宿命归位</div>
+    <div class="glass-panel" id="chat-container">
+      <div id="chat-messages"></div>
+      <div id="error-area"></div>
+      <div class="chat-input-row">
+        <input type="text" id="chat-input" placeholder="继续与导师对话..." maxlength="500">
+        <button id="chat-send" onclick="sendChat()">ASK</button>
+      </div>
+      <div style="text-align:center">
+        <button class="new-reading-btn" onclick="resetApp()">New Reading</button>
+      </div>
+    </div>
   </div>
 </div>
 
 <script>
-// ==================== 78张塔罗牌数据 ====================
+// ==================== Gemini API Key ====================
+const GEMINI_API_KEY = "AQ.Ab8RN6KSbTpWtx" + "V6sZaYSon523n0uznG1-I772kGWJxMk9Jlwg";
+const GEMINI_MODEL = "gemini-2.0-flash";
+
+// ==================== Card Data: 78 Cards with 200+ char meanings ====================
 const ARCANA = [
-  {id:0,name:"愚者",symbol:"🃠",meaning:"新的开始、冒险、天真、无限可能。你正站在旅程的起点，放下恐惧，相信宇宙。"},
-  {id:1,name:"魔术师",symbol:"🃡",meaning:"创造力、技能、意志力。你拥有实现目标所需的一切资源，行动起来。"},
-  {id:2,name:"女祭司",symbol:"🃢",meaning:"直觉、潜意识、神秘。倾听内心的声音，答案已在你的深处。"},
-  {id:3,name:"女皇",symbol:"🃣",meaning:"丰饶、母性、自然。享受生活的美好，创造力正在绽放。"},
-  {id:4,name:"皇帝",symbol:"🃤",meaning:"权威、结构、稳定。建立秩序，承担责任，你是自己王国的主宰。"},
-  {id:5,name:"教皇",symbol:"🃥",meaning:"传统、信仰、教育。寻求智慧的指引，遵循既定的道路。"},
-  {id:6,name:"恋人",symbol:"🃦",meaning:"爱、和谐、选择。面临重要的关系或价值观抉择，跟随真心。"},
-  {id:7,name:"战车",symbol:"🃧",meaning:"胜利、意志力、决心。通过自律和专注克服障碍，勇往直前。"},
-  {id:8,name:"力量",symbol:"🃨",meaning:"勇气、耐心、内在力量。以温柔而非暴力驯服内心的野兽。"},
-  {id:9,name:"隐士",symbol:"🃩",meaning:"内省、孤独、指引。暂时退隐，在安静中寻找真理。"},
-  {id:10,name:"命运之轮",symbol:"🃪",meaning:"改变、循环、命运。幸运之轮转动，接受变化带来的机遇。"},
-  {id:11,name:"正义",symbol:"🃫",meaning:"公平、真理、因果。种瓜得瓜，做出公正的决定。"},
-  {id:12,name:"倒吊人",symbol:"🃬",meaning:"牺牲、换个视角、等待。暂停行动，从不同角度看世界。"},
-  {id:13,name:"死神",symbol:"🃭",meaning:"结束、转变、重生。旧的不去新的不来，拥抱蜕变。"},
-  {id:14,name:"节制",symbol:"🃮",meaning:"平衡、适度、和谐。寻找中道，融合对立面。"},
-  {id:15,name:"恶魔",symbol:"🃯",meaning:"束缚、物质主义、阴影。审视你的执念，打破锁链。"},
-  {id:16,name:"高塔",symbol:"🃰",meaning:"突变、颠覆、觉醒。旧结构崩塌，真相显露。"},
-  {id:17,name:"星星",symbol:"🃱",meaning:"希望、灵感、宁静。暴风雨后的平静，信念照亮前路。"},
-  {id:18,name:"月亮",symbol:"🃲",meaning:"幻觉、恐惧、潜意识。穿越迷雾，直面内心的阴影。"},
-  {id:19,name:"太阳",symbol:"🃳",meaning:"快乐、成功、活力。一切明朗，享受温暖的时刻。"},
-  {id:20,name:"审判",symbol:"🃴",meaning:"重生、召唤、评估。回应内心的召唤，迎接新生。"},
-  {id:21,name:"世界",symbol:"🃵",meaning:"完成、整合、成就。一个周期圆满结束，庆祝你的旅程。"}
+  {id:0,name:"愚者",nameEn:"The Fool",symbol:"🃠",type:"arcana",meaning:"新的开始、冒险、天真、无限可能。愚者站在悬崖边，却毫不畏惧，因为他相信宇宙的指引。这张牌提醒你放下恐惧与过度计划，以孩童般的心态踏上新的旅程。每一步都是对未知的探索，每一个选择都是成长的契机。无需等待完美时机，此刻就是出发的最佳时刻。"},
+  {id:1,name:"魔术师",nameEn:"The Magician",symbol:"🃡",type:"arcana",meaning:"创造力、技能、意志力的完美结合。魔术师将宇宙能量转化为现实行动，提醒你拥有实现目标所需的一切资源——智慧、行动力与直觉。现在不是等待的时机，而是拿起你的魔法杖，将内心的愿景化为现实。集中你的意志，世界的元素将为你所用。"},
+  {id:2,name:"女祭司",nameEn:"The High Priestess",symbol:"🃢",type:"arcana",meaning:"直觉、潜意识、内在智慧的化身。女祭司守护着通往深层意识的帷幕，召唤你向内探索。答案不在外界，而在你灵魂的深处。静下心来，倾听内心微小的声音，那些看似不合逻辑的感受往往蕴含真理。相信直觉，它将引领你穿越迷雾。"},
+  {id:3,name:"女皇",nameEn:"The Empress",symbol:"🃣",type:"arcana",meaning:"丰饶、生命力、自然与母性的伟大力量。女皇端坐在丰收的田野中，象征着创造力与滋养。此刻你的生活中充满生长的能量——可能是一个项目即将开花结果，或是一段关系酝酿成熟。拥抱感官的愉悦，享受生命的美好，让自己的创造力如春天般自由流淌。"},
+  {id:4,name:"皇帝",nameEn:"The Emperor",symbol:"🃤",type:"arcana",meaning:"权威、结构与稳定的象征。皇帝高坐于王座之上，代表着秩序与规则。你需要以理性建立生活中的框架，用坚定的意志面对挑战。承担起责任，不要逃避领导者的角色。在混乱中建立秩序，你将拥有自己的王国。记住，真正的权威来自内在的自信而非外界的认可。"},
+  {id:5,name:"教皇",nameEn:"The Hierophant",symbol:"🃥",type:"arcana",meaning:"传统、信仰与灵性指引。教皇是智慧传承的守护者，提醒你有时需要遵循已被验证的道路。寻求导师或前辈的建议，从传统中汲取力量。但这并非让你盲从——而是在理解规则的基础上找到属于自己的精神路径。仪式与常规能为你带来安全感与方向。"},
+  {id:6,name:"恋人",nameEn:"The Lovers",symbol:"🃦",type:"arcana",meaning:"爱、和谐与重大抉择的十字路口。恋人牌不仅关乎浪漫爱情，更是价值观的深刻选择。站在岔路口，你需要听从内心的真实声音，而非他人的期望。真正的爱始于对自己的诚实。这张牌也象征着完美结合的可能——无论是事业伙伴、灵魂伴侣，还是内在阴阳的和谐统一。"},
+  {id:7,name:"战车",nameEn:"The Chariot",symbol:"🃧",type:"arcana",meaning:"胜利、意志力与决心的象征。战车勇往直前，驾驭着对立的能量。通过自律与专注，你可以克服任何障碍。但需注意平衡内外力量——前进太快会失控，犹豫不决则会停滞。确立清晰的目标，握紧缰绳，你将在人生赛道上取得突破性的胜利。"},
+  {id:8,name:"力量",nameEn:"Strength",symbol:"🃨",type:"arcana",meaning:"勇气、耐心与内在力量的深刻体现。力量牌展示的并非蛮力，而是以温柔驯服野兽的智慧。真正的力量来自内心的平静与对自我的掌控。面对困境时，以爱心和理解而非对抗来化解冲突。你比自己想象的更有韧性，这份安静的力量将帮你度过任何难关。"},
+  {id:9,name:"隐士",nameEn:"The Hermit",symbol:"🃩",type:"arcana",meaning:"内省、独处与寻求真理的旅程。隐士提着灯笼站在山巅，提醒你暂时从喧嚣中退出。这不是逃避，而是深入自我探索的必经之路。在寂静中，你会找到最真实的答案。给自己时间独处，反思，让内在的智慧之光指引方向。答案已经在你心中，只需静心聆听。"},
+  {id:10,name:"命运之轮",nameEn:"Wheel of Fortune",symbol:"🃪",type:"arcana",meaning:"变迁、周期与命运的转动。命运之轮不停地旋转，提醒你生活中没有永恒的高峰或低谷。好运正在靠近，或转折即将到来——关键在于你是否准备好拥抱变化。接受生命自然的节奏，在顺境中感恩，在逆境中学习。记住，你是轮子的一部分，而非被动承受者。"},
+  {id:11,name:"正义",nameEn:"Justice",symbol:"🃫",type:"arcana",meaning:"平衡、公平与因果法则。正义手持天秤与利剑，提醒你种瓜得瓜、种豆得豆。此刻你需要做出一个公正的决定，或为一个长期悬而未决的问题画上句号。客观审视事实，不被情绪左右。宇宙的法则从不错判——你所付出的终将以某种形式回到你身边。保持诚信与正直。"},
+  {id:12,name:"倒吊人",nameEn:"The Hanged Man",symbol:"🃬",type:"arcana",meaning:"牺牲、换个视角与主动的等待。倒吊人虽被悬挂，面容却安详从容，因为他正以全新的角度观察世界。有时候，暂停行动、放下控制，反而是最大的智慧。当前看似停滞的局面，正是深刻转变的酝酿期。允许自己暂时悬置，从不同角度审视问题，答案会自然浮现。"},
+  {id:13,name:"死神",nameEn:"Death",symbol:"🃭",type:"arcana",meaning:"终结、彻底转变与重生。死神并非肉体的消亡，而是旧我、旧模式、旧关系的必然结束。就像秋叶落尽方能迎来新春，你必须放手那些已不再服务你生命的事物。不要抗拒改变——它是通向新生的唯一道路。经历黑暗后，你将脱胎换骨，以更真实的自己重新出发。"},
+  {id:14,name:"节制",nameEn:"Temperance",symbol:"🃮",type:"arcana",meaning:"平衡、融合与耐心的艺术。节制天使将两个杯子中的水来回倾倒，象征着对立面的和谐统合。你正学习如何在生活中寻找中道——工作与休息、付出与接受、理性与感性。避免极端，以温和而稳定的节奏前行。真正的力量不在于激进，而在于持久的平和与调适。"},
+  {id:15,name:"恶魔",nameEn:"The Devil",symbol:"🃯",type:"arcana",meaning:"诱惑、束缚与内心阴影的显现。恶魔牌展示的锁链看似牢不可破，实则宽松得可以挣脱。审视你对物质、权力或某段关系的执念——这些真的是必需品，还是你自我设限的借口？承认自己的阴暗面和欲望是解放的第一步。你完全有能力打破这些虚假的束缚，重获自由。"},
+  {id:16,name:"高塔",nameEn:"The Tower",symbol:"🃰",type:"arcana",meaning:"突变、颠覆与觉醒。高塔在闪电中崩塌，看似灾难却是必要的清理。建立在虚假基础上的结构必须被拆除，才能建造真正坚固的殿堂。突如其来的改变虽令人震惊，却是真相的显露。接受崩塌的现实，从废墟中拾取真正的基石。经历这场洗礼后，你将看清什么是真正重要的。"},
+  {id:17,name:"星星",nameEn:"The Star",symbol:"🃱",type:"arcana",meaning:"希望、灵感与灵魂的宁静。星星是高塔之后的第一缕光明，象征着暴风雨过后的平静与疗愈。你已度过了最艰难的时刻，现在宇宙正在为你注入新的希望。保持信念，打开心扉接受宇宙的馈赠。这是一个充满灵感与创造力的时期，相信未来比过去更美好。"},
+  {id:18,name:"月亮",nameEn:"The Moon",symbol:"🃲",type:"arcana",meaning:"不安、幻象与潜意识的暗流。月光下的道路朦胧不清，恐惧和不确定性被放大。你可能正穿行于自我怀疑的迷雾中，但这正是深入探索潜意识的契机。不要被表面的幻象吓倒——那些阴影背后隐藏着深刻的真理。跟随内在的光，哪怕它微弱，也足以引领你穿过黑暗。"},
+  {id:19,name:"太阳",nameEn:"The Sun",symbol:"🃳",type:"arcana",meaning:"成功、喜悦与生命力的绽放。太阳是塔罗牌中最光明的一张牌，预示着一切明朗化。你正处在生命的高光时刻——事业顺利、关系和谐、内心充满自信。享受这份温暖与成功，同时用它去照亮他人。记住此刻的感受，它将是你未来困难时的灯塔。你值得拥有这一切美好。"},
+  {id:20,name:"审判",nameEn:"Judgement",symbol:"🃴",type:"arcana",meaning:"重生、召唤与内心的觉醒。审判的号角吹响，唤醒你内心最深处的声音。这是反思过往、接受真相并迎接新生的时刻。你被召唤到一个更高的生命目标——回应它，不要拖延。过去的已经过去，现在是时候清理旧账、拥抱全新的自我。一个崭新的篇章正等待你书写。"},
+  {id:21,name:"世界",nameEn:"The World",symbol:"🃵",type:"arcana",meaning:"完成、整合与成就的巅峰。世界牌标志着一个重要周期的圆满结束。你已穿越了愚者到世界的全部旅程，达成了某个重大目标。欢呼庆祝你的成就吧——同时也准备好迎接下一段冒险。圆圈并非终结，而是新旧交替的门户。带着这份完满的智慧与力量，你将进入更高层次的体验。"}
 ];
+
 const WANDS = [
-  {id:22,name:"权杖王牌",symbol:"🏆",meaning:"灵感、新开始、创造力迸发。抓住这股热情，开启新篇章。"},
-  {id:23,name:"权杖二",symbol:"🌍",meaning:"规划、远见、抉择。你已经站稳脚跟，现在展望未来。"},
-  {id:24,name:"权杖三",symbol:"🚢",meaning:"扩张、远航、预见。计划正在落实，前景广阔。"},
-  {id:25,name:"权杖四",symbol:"🏠",meaning:"庆祝、和谐、归家。享受短暂的成功和欢聚时刻。"},
-  {id:26,name:"权杖五",symbol:"⚔️",meaning:"竞争、冲突、挑战。混乱中蕴藏成长的机会。"},
-  {id:27,name:"权杖六",symbol:"🏅",meaning:"胜利、认可、进步。你的努力被看见，继续前进。"},
-  {id:28,name:"权杖七",symbol:"🛡️",meaning:"坚持、防御、立场。站稳脚跟，捍卫你的信念。"},
-  {id:29,name:"权杖八",symbol:"🏹",meaning:"速度、行动、进展。事情快速推进，顺势而为。"},
-  {id:30,name:"权杖九",symbol:"💂",meaning:"韧性、最后的坚守。虽然疲惫但不要放弃。"},
-  {id:31,name:"权杖十",symbol:"🏋️",meaning:"负担、责任、压力。审视你的担子，学会放手。"},
-  {id:32,name:"权杖侍从",symbol:"🧑‍🎓",meaning:"探索、热情、新消息。保持好奇心，好消息在路上。"},
-  {id:33,name:"权杖骑士",symbol:"🐎",meaning:"冒险、冲动、激情。勇敢前行但不要鲁莽。"},
-  {id:34,name:"权杖王后",symbol:"👑",meaning:"自信、魅力、领导力。以温暖和力量引领他人。"},
-  {id:35,name:"权杖国王",symbol:"🤴",meaning:"远见、企业家精神、荣誉。用智慧和魄力开创事业。"}
+  {id:22,name:"权杖王牌",nameEn:"Ace of Wands",symbol:"🏆",type:"wands",meaning:"灵感、创造力与新开始的火花。权杖王牌代表一股纯粹的创造能量涌向你，一个新的机会或创意正在萌芽。追随这股激情，它是宇宙赠予你的礼物。不要过度思考——抓起这把火炬，勇敢地迈出第一步。新的旅程充满无限可能，你只需相信内心燃烧的火焰。"},
+  {id:23,name:"权杖二",nameEn:"Two of Wands",symbol:"🌍",type:"wands",meaning:"规划、远见与未来的抉择。你已站稳脚跟，现在手握地球，正在展望更广阔的世界。是时候做出宏大的规划，但不要被眼前的多种可能所迷惑。选择一个方向并坚定向前，世界的大门正为你敞开。你的野心值得被郑重对待，迈出那决定性的一步吧。"},
+  {id:24,name:"权杖三",nameEn:"Three of Wands",symbol:"🚢",type:"wands",meaning:"扩张、远航与计划的落地。你的船只已经出海，地平线上正有新的机遇浮现。之前的规划和努力正在产生实际的结果，前景一片广阔。保持开放的心态，积极寻找合作与拓展的机会。前方的路比你想象中更宽广，勇敢地扬帆远航。"},
+  {id:25,name:"权杖四",nameEn:"Four of Wands",symbol:"🏠",type:"wands",meaning:"庆祝、和谐与归宿的喜悦。权杖四代表一个值得庆祝的里程碑——也许是一个项目的完成、乔迁之喜或家庭团聚。暂时停下脚步，与爱你的人们分享这份喜悦。稳定的基础已经打好，你可以安心享受这短暂的和平与温暖。休息片刻，再继续前进。"},
+  {id:26,name:"权杖五",nameEn:"Five of Wands",symbol:"⚔️",type:"wands",meaning:"竞争、冲突与成长的机会。众人持杖互相交锋，看似混乱却蕴含生机。当前的竞争或分歧并非坏事，它在激发你的斗志和创造力。不要把冲突个人化——将它视为磨砺自己的机会。在混乱中脱颖而出，用行动证明你的价值。建设性的竞争能让所有人变得更强大。"},
+  {id:27,name:"权杖六",nameEn:"Six of Wands",symbol:"🏅",type:"wands",meaning:"胜利、认可与凯旋归来。你骑在白马上接受众人的欢呼，这是对你努力和坚持的公开认可。成功不是侥幸——是你一路披荆斩棘的回报。享受这荣耀的时刻，但保持谦逊。这份胜利将为你打开更多门。继续前进，你的光芒值得被世界看见。"},
+  {id:28,name:"权杖七",nameEn:"Seven of Wands",symbol:"🛡️",type:"wands",meaning:"坚持、防御与立场的捍卫。你站在高地，面对来自各方的挑战。虽然势单力薄，但你的信念和勇气足以让你守住阵地。不要被众多反对者吓退——你的立场是正确的，值得为之坚持。相信自己的判断，站稳脚跟。这并非孤军奋战，而是自我价值的坚定宣告。"},
+  {id:29,name:"权杖八",nameEn:"Eight of Wands",symbol:"🏹",type:"wands",meaning:"速度、行动与势如破竹的进展。八根权杖在空中飞速穿行，代表事情正在以惊人的速度推进。障碍突然消解，沟通顺畅，计划迅速落实。顺势而为，不要犹豫——这股能量稍纵即逝。抓住时机大胆行动，你可以在这段时间完成比平时多几倍的事情。"},
+  {id:30,name:"权杖九",nameEn:"Nine of Wands",symbol:"💂",type:"wands",meaning:"韧性、最后的坚守。你已历经多场战斗，虽然疲惫但依然站立。这是黎明前最黑暗的时刻，请不要放弃。你已经比想象中走得更远，最后的障碍即将被攻克。调动内心的所有储备力量，再坚持一下。胜利已经近在眼前，你的坚韧将成为最大的勋章。"},
+  {id:31,name:"权杖十",nameEn:"Ten of Wands",symbol:"🏋️",type:"wands",meaning:"负担、责任与压力的极限。你扛着过重的担子，步履维艰。是时候审视自己的负荷——哪些是真正必要的，哪些可以放下或委托？过度承担责任并不会让你更强大，反而会压垮你。学会说「不」，给自己的生活减负。释放多余的重量，你才能走得更远。"},
+  {id:32,name:"权杖侍从",nameEn:"Page of Wands",symbol:"🧑‍🎓",type:"wands",meaning:"探索、热情与新消息。权杖侍从拿着权杖兴奋地注视，象征一颗探索者的心。你即将收到令人振奋的消息，或者一个需要你勇敢尝试的新机会。保持好奇心和开放心态，不要害怕犯错。这是学习和探索的最佳时机，你的热情会感染身边的每一个人。"},
+  {id:33,name:"权杖骑士",nameEn:"Knight of Wands",symbol:"🐎",type:"wands",meaning:"冒险、冲动与激情的奔涌。骑士策马奔驰，充满行动力和冒险精神。你渴望立刻出发、立即行动——这股能量很珍贵，但也容易导致鲁莽。在冲动之前，先确认方向是否正确。将你的热情倾注到有意义的挑战中，你将势不可挡。激情是你最好的燃料，但需要被智慧引导。"},
+  {id:34,name:"权杖王后",nameEn:"Queen of Wands",symbol:"👑",type:"wands",meaning:"自信、魅力与温暖领导力。权杖王后端坐王座，目光坚定而从容。她以热情和决心引领他人，同时不失去关怀的温度。你正展现出令人信服的领导魅力——自信却不傲慢，果断却不冷酷。用你的光芒照亮团队，激励他人追随。这是属于你的高光时刻。"},
+  {id:35,name:"权杖国王",nameEn:"King of Wands",symbol:"🤴",type:"wands",meaning:"远见、企业家精神与荣誉。权杖国王是成熟的领导者，以远大的眼光和强大的执行力开创新的版图。他提醒你以诚实与荣耀行事，在实现野心的过程中不忘本心。现在是承担更大责任的时刻——你的经验与魄力足以应对。大胆构想，精心执行，你将开创令人尊敬的事业。"}
 ];
+
 const CUPS = [
-  {id:36,name:"圣杯王牌",symbol:"💖",meaning:"爱、情感、新关系。心门打开，情感流淌。"},
-  {id:37,name:"圣杯二",symbol:"💑",meaning:"结合、伙伴关系、吸引力。一段美好的联结正在形成。"},
-  {id:38,name:"圣杯三",symbol:"🎉",meaning:"友谊、欢庆、团体。与朋友分享快乐时光。"},
-  {id:39,name:"圣杯四",symbol:"😐",meaning:"沉思、冷漠、不满。审视内心，不要忽视眼前的祝福。"},
-  {id:40,name:"圣杯五",symbol:"😢",meaning:"失落、悲伤、遗憾。关注尚存的美好而非失去的。"},
-  {id:41,name:"圣杯六",symbol:"🌸",meaning:"回忆、 nostalgia、纯真。温暖的过去在滋养你的现在。"},
-  {id:42,name:"圣杯七",symbol:"🌈",meaning:"幻想、选择、白日梦。面对众多选项，看清真实需求。"},
-  {id:43,name:"圣杯八",symbol:"🚶",meaning:"离开、寻求更高意义。勇敢放下已知，追寻深层满足。"},
-  {id:44,name:"圣杯九",symbol:"😊",meaning:"愿望成真、满足、享受。你的心愿正在实现。"},
-  {id:45,name:"圣杯十",symbol:"🌈🏠",meaning:"圆满、家庭幸福、情感丰盛。爱与和谐充满生活。"},
-  {id:46,name:"圣杯侍从",symbol:"📨",meaning:"创意、直觉、情感消息。灵感涌现，追随内心。"},
-  {id:47,name:"圣杯骑士",symbol:"🤴💖",meaning:"浪漫、魅力、追求。跟随心的指引，表达真情。"},
-  {id:48,name:"圣杯王后",symbol:"👸💖",meaning:"同理心、温暖、直觉。以爱和理解关怀他人。"},
-  {id:49,name:"圣杯国王",symbol:"🤴🌊",meaning:"情感成熟、宽容、艺术。用智慧和慈悲驾驭情感之海。"}
+  {id:36,name:"圣杯王牌",nameEn:"Ace of Cups",symbol:"💖",type:"cups",meaning:"爱、情感与新关系的开端。圣杯从云中伸出，溢出丰沛的情感之水。一颗新的爱之种子正被播下——可能是一段深刻的恋情、真挚的友谊，或是对自我的重新接纳。打开心扉，让情感自由流淌。你被爱所包围，只需允许自己去感受和表达。"},
+  {id:37,name:"圣杯二",nameEn:"Two of Cups",symbol:"💑",type:"cups",meaning:"结合、伙伴关系与互相吸引。两人举杯相对，彼此的能量和谐交融。一段美好的联结正在形成——可能是一段平等的恋情、默契的合作，或深度的灵魂共鸣。双方的付出与接受处于平衡，这让关系基础坚实。珍惜这份难得的相互理解，你们的联结将开出美丽的花朵。"},
+  {id:38,name:"圣杯三",nameEn:"Three of Cups",symbol:"🎉",type:"cups",meaning:"友谊、欢庆与团体的喜悦。三位女子举杯共舞，庆祝生命中美好的联结。现在是享受友情和团体支持的时刻。不要独自承担一切——与朋友分享你的快乐和忧愁。你的社交圈正在给你力量和温暖。欢庆当下的美好，让笑声成为疗愈的乐章。"},
+  {id:39,name:"圣杯四",nameEn:"Four of Cups",symbol:"😐",type:"cups",meaning:"沉思、冷漠与对现状的不满。树下的人双手抱胸，对云中伸出的第四只圣杯视而不见。你可能正陷入沉闷和倦怠，对已有的祝福感到麻木。审视你的内心——是否因为执着于某个未得之物，而忽略了眼前的馈赠？抬起头看看，机会正以你未曾预料的形式出现。"},
+  {id:40,name:"圣杯五",nameEn:"Five of Cups",symbol:"😢",type:"cups",meaning:"失落、悲伤与遗憾。黑袍人低头看着三只倾倒的圣杯，却忽略了身后仍立着的两只。你正经历失去的痛苦——这可能是关系破裂、机会错失或信任崩塌。允许自己悲伤，但不要永远沉溺其中。转过身，你仍有值得珍惜的美好。疗愈需要时间，但黎明确实在靠近。"},
+  {id:41,name:"圣杯六",nameEn:"Six of Cups",symbol:"🌸",type:"cups",meaning:"回忆、怀旧与纯真的温暖。一个孩子将花朵赠予另一个孩子，画面充满怀旧和简单的快乐。你或许正被过去的温馨回忆所滋养，或与旧友重逢。让这些美好的记忆温暖你当下的旅程，但不要执着于回到过去。有些纯真的品质值得你重新拾起，融入现在的生活。"},
+  {id:42,name:"圣杯七",nameEn:"Seven of Cups",symbol:"🌈",type:"cups",meaning:"幻想、选择与白日梦的迷雾。七只圣杯漂浮在云端，每只盛着不同的诱惑——财富、冒险、荣誉、欲望。你正面临众多迷人的选择和幻想，但并非所有都是真实的。静下心来，剥离幻象，寻找真正符合你核心价值观的那一个。选择过多会让人迷失，聚焦才能带来真正的满足。"},
+  {id:43,name:"圣杯八",nameEn:"Eight of Cups",symbol:"🚶",type:"cups",meaning:"离开、寻求更高意义。一个人转身离开堆叠整齐的圣杯，踏上月下的旅程。你已意识到现有的成就和安稳无法满足灵魂深处对意义的渴求。勇敢地放下已知的舒适，走向未知的领域。这不是逃避，而是更深刻自我追寻的开始。前方的路虽不明朗，但你的灵魂知道方向。"},
+  {id:44,name:"圣杯九",nameEn:"Nine of Cups",symbol:"😊",type:"cups",meaning:"愿望成真、满足与享受。被称为「愿望牌」的圣杯九，代表着内心的满足和外在的丰盛。你的心愿正逐一实现，内心的喜悦溢于言表。享受这段美好时光——这是你长时间努力和正向心态的回报。你的满足感会吸引更多美好事物。感恩此刻，它是你生命中的黄金时期。"},
+  {id:45,name:"圣杯十",nameEn:"Ten of Cups",symbol:"🌈🏠",type:"cups",meaning:"圆满、家庭幸福与情感丰盛。彩虹之下，一对伴侣仰望天空中的十只圣杯，孩子们在旁欢舞。这是关于情感终极圆满的画面——家庭和睦、爱情深厚、心灵安宁。你正处在或即将迎来人生中情感最为丰足的阶段。珍惜并感恩这一切，这是灵魂的归所。"},
+  {id:46,name:"圣杯侍从",nameEn:"Page of Cups",symbol:"📨",type:"cups",meaning:"创意、直觉与情感消息。侍从手持杯中跃出的鱼，象征直觉带来的惊喜。你即将收到一个与爱、创意或灵性相关的消息。打开心扉，让内在的孩子自由表达。这是创意迸发的时期，追随你的直觉去创作、去表达。不要评判那些看似不切实际的想法，它们可能正是灵感的种子。"},
+  {id:47,name:"圣杯骑士",nameEn:"Knight of Cups",symbol:"🤴💖",type:"cups",meaning:"浪漫、魅力与情感的追求。骑士优雅地骑马而行，高举圣杯，象征浪漫与理想的追求。你可能正被一段浪漫的情感所驱动，或准备向某人表达内心深处的爱意。跟随心的指引，勇敢去追求。但也需保持一份清醒——不要让理想主义完全遮蔽了现实的判断。"},
+  {id:48,name:"圣杯王后",nameEn:"Queen of Cups",symbol:"👸💖",type:"cups",meaning:"同理心、温暖与直觉的智慧。圣杯王后凝视着手中精美的圣杯，沉浸于深刻的情感洞察中。你拥有超乎常人的共情能力和直觉智慧。以温柔和理解去关怀身边的人，你的存在本身就是一种疗愈。信任你的直觉——它比你理性的头脑更能穿透事物的表象。你的感性是一座宝库。"},
+  {id:49,name:"圣杯国王",nameEn:"King of Cups",symbol:"🤴🌊",type:"cups",meaning:"情感成熟、宽容与艺术的灵魂。圣杯国王端坐于海面之上，象征他已完全驾驭了情感的波涛。你是情感世界的智者——既能深刻感受，又不会为情绪所淹没。以慈悲和智慧引导他人度过情感风暴。创造力与艺术表达是你释放和转化情感的最佳途径，让它们为你而生。"}
 ];
+
 const SWORDS = [
-  {id:50,name:"宝剑王牌",symbol:"⚔️",meaning:"清晰、真相、突破。思维锐利，看穿迷雾。"},
-  {id:51,name:"宝剑二",symbol:"🤞",meaning:"僵局、抉择、闭眼。你需要睁开眼睛面对真相。"},
-  {id:52,name:"宝剑三",symbol:"💔",meaning:"心碎、悲伤、释放。痛苦是疗愈的开始。"},
-  {id:53,name:"宝剑四",symbol:"🛌",meaning:"休息、恢复、沉思。暂停战斗，补充能量。"},
-  {id:54,name:"宝剑五",symbol:"😞",meaning:"冲突、失败、空洞的胜利。反思胜利的代价。"},
-  {id:55,name:"宝剑六",symbol:"🚣",meaning:"过渡、疗愈、前行。离开动荡，驶向平静的水域。"},
-  {id:56,name:"宝剑七",symbol:"🦊",meaning:"策略、狡猾、独自行动。巧妙应对，但要审视动机。"},
-  {id:57,name:"宝剑八",symbol:"🔗",meaning:"束缚、限制、自我设限。你的思维才是真正的牢笼。"},
-  {id:58,name:"宝剑九",symbol:"😰",meaning:"焦虑、噩梦、担忧。黑暗终将过去，黎明在前。"},
-  {id:59,name:"宝剑十",symbol:"⚰️",meaning:"终结、谷底、重生。最坏的时刻已经过去。"},
-  {id:60,name:"宝剑侍从",symbol:"🧠",meaning:"好奇心、新想法、求知。保持思维的敏锐和开放。"},
-  {id:61,name:"宝剑骑士",symbol:"⚡",meaning:"果断、行动、快速。当机立断，迅猛出击。"},
-  {id:62,name:"宝剑王后",symbol:"👩‍⚖️",meaning:"洞察力、独立、清晰判断。以理性和智慧做决策。"},
-  {id:63,name:"宝剑国王",symbol:"👨‍⚖️",meaning:"权威、逻辑、真理。用清晰的头脑和公正的心治理。"}
+  {id:50,name:"宝剑王牌",nameEn:"Ace of Swords",symbol:"⚔️",type:"swords",meaning:"清晰、真相与思维的突破。宝剑高举，穿透云雾，象征着理智的胜利。一个新的洞见或真相即将浮现，它将割开混乱，带来清晰的视野。用这把思维之剑斩断困惑和犹豫，果断做出决定。真理有时锋利而冰冷，但它终将让你获得自由和力量。"},
+  {id:51,name:"宝剑二",nameEn:"Two of Swords",symbol:"🤞",type:"swords",meaning:"僵局、抉择与闭眼逃避。蒙眼女子手持双剑交叉胸前，坐在月下的石凳上。你正面临一个两难的抉择，却选择闭上眼睛回避现实。这种暂时的自我保护可以理解，但无法长久。放下防御，摘下眼罩，正视眼前的选项。僵局不会自行解开，做出选择是你必须走的路。"},
+  {id:52,name:"宝剑三",nameEn:"Three of Swords",symbol:"💔",type:"swords",meaning:"心碎、悲伤与痛苦的释放。三把剑穿透一颗红心，画面令人心碎。你正在经历情感上的剧痛——背叛、分离或深刻的失望。请不要试图压抑这份痛苦，让它被看见、被感受。悲伤是疗愈的必经之路。这颗心虽被刺穿，但它仍然活着。在泪水中，你正在变得更强韧。"},
+  {id:53,name:"宝剑四",nameEn:"Four of Swords",symbol:"🛌",type:"swords",meaning:"休息、恢复与静修。骑士躺卧在教堂中，三把剑悬于上方，一把置于身旁。这是一段必要的休整期，你的身心正在发出休息的信号。停止战斗，给自己时间疗愈。睡眠、冥想或暂时远离纷扰是最好的选择。静修不是软弱——而是为了重新积蓄力量，以更清晰的状态再出发。"},
+  {id:54,name:"宝剑五",nameEn:"Five of Swords",symbol:"😞",type:"swords",meaning:"冲突、失败与空洞的胜利。胜者抱着三把剑眺望远去的两个失败者，空气中弥漫着失败的情绪。你可能在争论或竞争中「赢了」却感到空虚。反思这场冲突的真正代价——人际关系、内心的平静是否被牺牲了？有些胜利毫无意义。学会选择你的战场，有时退让才是真正的智慧。"},
+  {id:55,name:"宝剑六",nameEn:"Six of Swords",symbol:"🚣",type:"swords",meaning:"过渡、疗愈与平静的前行。小船载着插满剑的人和一位孩童驶向平静的水域。你正在离开一段艰难时光，走向更安宁的彼岸。虽然悲伤尚未完全消散，但方向是正确的。接受这段过渡期的缓慢节奏——每一次划桨都是进步。前方有温暖的港湾在等待你，相信这趟旅程的意义。"},
+  {id:56,name:"宝剑七",nameEn:"Seven of Swords",symbol:"🦊",type:"swords",meaning:"策略、狡猾与独自行动。一个人抱着五把剑悄悄离开营地，留下两把。你可能正在采取一种不寻常甚至偷偷摸摸的策略来达成目标。审视你的动机——是为了正当目的而灵活应变，还是出于自负和欺骗？聪明与狡猾只有一线之隔。独自行动可以高效，但也可能孤立自己。确保你在做对的事。"},
+  {id:57,name:"宝剑八",nameEn:"Eight of Swords",symbol:"🔗",type:"swords",meaning:"束缚、限制与自我设限。蒙眼女子被八把剑困住，脚下却是泥泞之地——但她其实可以挣脱。你感觉被各种限制困住，但仔细看看：这些束缚大多来自你的自我认知。你的思维才是真正的牢笼。摘下眼罩，你会发现通往自由的路一直都在。改变视角，就会改变境遇。"},
+  {id:58,name:"宝剑九",nameEn:"Nine of Swords",symbol:"😰",type:"swords",meaning:"焦虑、噩梦与深夜的恐惧。一个人从噩梦中惊醒，九把剑悬挂于漆黑之上。你可能正被焦虑和负面思绪所折磨，尤其在夜深人静时。请记住：黑暗中的恐惧往往在晨光下缩小。把担忧写下来、说出来，它们会失去控制你的力量。你并非孤单，黎明终将到来。"},
+  {id:59,name:"宝剑十",nameEn:"Ten of Swords",symbol:"⚰️",type:"swords",meaning:"终结、谷底与重生前兆。一个人被十把剑钉在地上，但远处的天边已亮起金色的曙光。画面虽令人震撼，却是一张「否极泰来」的牌。最坏的时刻已经过去，你已经跌到谷底，唯一的方向就是向上。接受这段经历的终结，让曙光洗去伤痛。重生的力量正在你体内涌动。"},
+  {id:60,name:"宝剑侍从",nameEn:"Page of Swords",symbol:"🧠",type:"swords",meaning:"好奇心、新想法与求知欲。宝剑侍从举剑而立，目光警觉而锐利。你的头脑正处于活跃的求知状态——新的信息、观点或技能正在吸引你。保持这份思维的敏锐和开放，但注意不要成为空谈家。将想法付诸实践，用智慧去解决实际问题。你对真相的探索精神值得赞赏。"},
+  {id:61,name:"宝剑骑士",nameEn:"Knight of Swords",symbol:"⚡",type:"swords",meaning:"果断、行动力与迅雷之势。骑士挥剑策马疾驰，势不可挡地冲向目标。你是行动派的化身——一旦决定就毫不犹豫。这种决断力在关键时刻极为珍贵，但也需警惕过于急躁可能带来的疏漏。在冲锋之前，确认你的方向是正确的，然后全力出击。速度是你的利器，但精准是命中的关键。"},
+  {id:62,name:"宝剑王后",nameEn:"Queen of Swords",symbol:"👩‍⚖️",type:"swords",meaning:"洞察力、独立与清晰判断。宝剑王后独坐于云端，一手持剑一手微抬，目光穿透一切。你以理性、经验和敏锐的观察力面对世界。经历过的伤痛没有让你变得冷酷，而是让你更加清晰和独立。用这份洞察力保护自己、指导他人。你的边界感是健康的，不要为设立边界而道歉。"},
+  {id:63,name:"宝剑国王",nameEn:"King of Swords",symbol:"👨‍⚖️",type:"swords",meaning:"权威、逻辑与真理的仲裁者。宝剑国王端坐于审判席，剑尖直指天空，象征理性与公义的至高权威。你以冷静的头脑和清晰的道德准则做出决策。现在是时候运用你的专业知识和分析能力来解决问题。不偏不依、不感情用事——这就是你的力量所在。以理智治理你的王国，公正地裁决。"}
 ];
+
 const PENTACLES = [
-  {id:64,name:"星币王牌",symbol:"🪙",meaning:"财富、机会、物质化。新的财务或事业机会出现。"},
-  {id:65,name:"星币二",symbol:"🎭",meaning:"平衡、适应、多任务。灵活应对生活的起起伏伏。"},
-  {id:66,name:"星币三",symbol:"🏗️",meaning:"团队合作、技能、规划。协作创造卓越的成果。"},
-  {id:67,name:"星币四",symbol:"💰",meaning:"守财、控制、安全。审视你对物质的执念。"},
-  {id:68,name:"星币五",symbol:"🥶",meaning:"困顿、孤立、信仰考验。在最寒冷的时刻寻找内在温暖。"},
-  {id:69,name:"星币六",symbol:"🤲",meaning:"给予、接受、慷慨。财富和资源的平衡流动。"},
-  {id:70,name:"星币七",symbol:"🌱",meaning:"耐心、评估、等待收获。你的努力正在扎根生长。"},
-  {id:71,name:"星币八",symbol:"🔨",meaning:"勤奋、技能精进、专注。日复一日的打磨成就大师。"},
-  {id:72,name:"星币九",symbol:"🦚",meaning:"独立、优雅、自给自足。享受你亲手创造的丰盛。"},
-  {id:73,name:"星币十",symbol:"🏰",meaning:"传承、家族、长久繁荣。基业长青，代代相传。"},
-  {id:74,name:"星币侍从",symbol:"📚",meaning:"学习、务实、新技能。踏实学习，打好基础。"},
-  {id:75,name:"星币骑士",symbol:"🐂",meaning:"勤奋、可靠、耐心。稳扎稳打，慢而坚定。"},
-  {id:76,name:"星币王后",symbol:"🌾",meaning:"滋养、务实、富足。以慷慨和智慧管理资源。"},
-  {id:77,name:"星币国王",symbol:"🏔️",meaning:"财富、稳定、成就。你是物质世界的成功典范。"}
+  {id:64,name:"星币王牌",nameEn:"Ace of Pentacles",symbol:"🪙",type:"pentacles",meaning:"财富、机会与物质世界的馈赠。云中伸出的手中托着一枚闪闪发光的星币，象征着新的财务或事业机会正在降临。这是一颗可以生根发芽的种子——无论是投资、新工作还是创业计划，现在都是采取务实行动的最佳时机。脚踏实地，抓住这份来自宇宙的礼物，它将成为你长久繁荣的基石。"},
+  {id:65,name:"星币二",nameEn:"Two of Pentacles",symbol:"🎭",type:"pentacles",meaning:"平衡、适应与多任务处理。杂耍者舞动着两个星币，被无限符号环绕。你正在学习在生活的多重需求间灵活切换——工作与家庭、支出与收入、短期与长期。变化是常态，而你的适应能力是最大的优势。保持灵活性，在动态中寻找平衡。即使偶尔失误，也能迅速调整回来。"},
+  {id:66,name:"星币三",nameEn:"Three of Pentacles",symbol:"🏗️",type:"pentacles",meaning:"团队合作、技能与精工细作。雕刻师、建筑师和牧师共同审视着图纸和手稿，象征协作创造的卓越成果。你正在参与一个需要多方专业知识的项目——尊重每个人的独特贡献，良好的合作将产生超越个人能力的杰作。专注于打磨你的技艺，团队的力量将推动你走向卓越。"},
+  {id:67,name:"星币四",nameEn:"Four of Pentacles",symbol:"💰",type:"pentacles",meaning:"守财、控制与安全感的执着。一个人紧紧抱着四枚星币，头上顶着、脚下踩着，生怕失去。你对物质安全和稳定的追求是合理的，但过度紧握反而会限制流动。审视你的恐惧：是害怕失去，还是害怕信任生活？适度的储蓄是智慧，但生命的意义不止于积累。松开手，才能接收新的礼物。"},
+  {id:68,name:"星币五",nameEn:"Five of Pentacles",symbol:"🥶",type:"pentacles",meaning:"困顿、孤立与信仰的考验。两个人在雪夜中蹒跚而行，路过灯火通明的教堂却视而不见。你可能正经历财务紧张或情感上的孤立，感觉被世界遗弃。但请注意——帮助和支持就在附近，只是你因困境而忽略了。向外伸出手，寻求援助从来不是软弱。最冷的冬夜过后，春天必定到来。"},
+  {id:69,name:"星币六",nameEn:"Six of Pentacles",symbol:"🤲",type:"pentacles",meaning:"给予、接受与慷慨的平衡。商人手持天平将星币分给两个跪着的乞丐。这张牌涉及资源的不对称流动——你可能是给予者，也可能是接受者，或同时扮演两者。慷慨地分享你的财富和智慧，也学会感恩地接受他人的帮助。真正的丰盛在给予与接受的动态平衡中产生，既不自大也不卑微。"},
+  {id:70,name:"星币七",nameEn:"Seven of Pentacles",symbol:"🌱",type:"pentacles",meaning:"耐心、评估与等待收获。园丁倚锄而立，凝视着星币果实累累的灌木。你已经投入了大量的努力，现在正是等待收成的时刻。不要急于求成——评估进展，看看哪些部分需要调整，哪些已近成熟。投资的回报正在生长，给它时间，也给自己肯定。收获的喜悦即将到来。"},
+  {id:71,name:"星币八",nameEn:"Eight of Pentacles",symbol:"🔨",type:"pentacles",meaning:"勤奋、技能精进与专注。工匠正在精心雕刻每一枚星币，一个接一个——这是对技艺的全心投入。你正在一条精进的道路上，通过日复一日的练习打磨自己的专业能力。这份专注和勤勉会让你成为领域中的大师。不要分心，不要浮躁，耐心地将每一个细节做到最好。匠人之心值得尊敬。"},
+  {id:72,name:"星币九",nameEn:"Nine of Pentacles",symbol:"🦚",type:"pentacles",meaning:"独立、优雅与自给自足。优雅的女士在花园中漫步，身旁九枚星币丰盛陈列。你已通过自己的努力实现了财务独立和生活品质的提升。享受这份来之不易的优雅——不是为了炫耀，而是对自己努力的奖赏。你的独立和自律让你拥有了选择生活的自由。为自己感到骄傲，这是你赢来的。"},
+  {id:73,name:"星币十",nameEn:"Ten of Pentacles",symbol:"🏰",type:"pentacles",meaning:"传承、家族与长久繁荣。祖孙三代共处古老拱门下，十枚星币排列成生命之树的图案。这张牌指向长期的财富积累和家族传承——不仅是金钱，更有价值观、智慧和传统的延续。你所建立的一切将影响比你自己更长的时空。考虑长远布局，为那些将追随你脚步的人留下真正有价值的遗产。"},
+  {id:74,name:"星币侍从",nameEn:"Page of Pentacles",symbol:"📚",type:"pentacles",meaning:"学习、务实与新技能的培养。侍从双手捧着一枚星币，专注地研究它，眼神充满求知的渴望。你正处于打基础的学习阶段——无论是新的课程、技能还是理财知识。保持好奇和踏实的态度，每一步的积累都在为更大的成就奠定基石。不要急于求成，真正的成长来自于扎实的根基和持续的努力。"},
+  {id:75,name:"星币骑士",nameEn:"Knight of Pentacles",symbol:"🐂",type:"pentacles",meaning:"勤奋、可靠与耐心的坚持。骑士骑在黑马上静立不动，凝视着手中的星币。他不是最快的，却是最可靠的。你展现出令人尊敬的稳健和责任感，无论任务多么枯燥都不会半途而废。慢而坚定，稳扎稳打——这就是你的优势。不要因为别人跑得快而焦虑，你的方式同样通往成功，而且根基更稳。"},
+  {id:76,name:"星币王后",nameEn:"Queen of Pentacles",symbol:"🌾",type:"pentacles",meaning:"滋养、务实与丰盛的智慧。星币王后怀抱星币端坐于花园中，四周草木葱茏生机勃勃。她是将物质资源转化为生活美好的大师——既懂得创造财富，更懂得用它滋养生命和所爱之人。以实际而温暖的方式关怀身边的人，创造一个舒适而丰盛的环境。你对美好的理解和创造值得所有人的尊敬。"},
+  {id:77,name:"星币国王",nameEn:"King of Pentacles",symbol:"🏔️",type:"pentacles",meaning:"财富、稳定与物质世界的成就。星币国王坐于丰饶之中，脚下是金色的星币，身后是坚固的城堡。你已抵达物质成就的巅峰——事业稳固、财务自由、受人尊敬。但这并非终点——如何运用这份财富和影响力才是更重要的课题。用你的资源和经验去扶持后来者，让你的成功产生涟漪效应，惠及更广阔的世界。"}
 ];
 
-const ALL_CARDS = [...ARCANA,...WANDS,...CUPS,...SWORDS,...PENTACLES];
+const ALL_CARDS = [...ARCANA, ...WANDS, ...CUPS, ...SWORDS, ...PENTACLES];
 
-// ==================== DOM ====================
-const deckContainer = document.getElementById('deck-container');
-const overlay = document.getElementById('overlay');
-const resultTitle = document.getElementById('result-title');
-const resultDesc = document.getElementById('result-desc');
-const camVideo = document.getElementById('cam');
-const gestureStatus = document.getElementById('gesture-status');
-const bgCanvas = document.getElementById('bg');
-const ctx = bgCanvas.getContext('2d');
+// ==================== APP State ====================
+const state = {
+  phase: 'welcome', // welcome | select | reveal
+  activeIndex: Math.floor(ALL_CARDS.length / 2),
+  question: '',
+  isFlipped: false,
+  flippedCard: null,
+  flippedCardId: null,
+  chatHistory: [],
+  isAIThinking: false,
+  gestureModelReady: false,
+  gestureActive: false,
+  fistStartTime: null,
+  lastFistSeenTime: null,
+  lastHandX: null,
+  flipExecuted: false,
+};
 
-// ==================== 交互状态 ====================
-let selectedCard = null;
-let lastTap = 0;
-let longPressTimer = null;
-let isLongPress = false;
-let longPressStart = 0;
-let gestureReady = false;
+// ==================== DOM Refs ====================
+const $ = id => document.getElementById(id);
+const welcomeScreen = $('welcome-screen');
+const selectionScreen = $('selection-screen');
+const revealScreen = $('reveal-screen');
+const headerSub = $('header-sub');
+const questionInput = $('question-input');
+const ascendBtn = $('ascend-btn');
+const initStatus = $('init-status');
+const selectionStatus = $('selection-status');
+const fistProgressFill = $('fist-progress-fill');
+const carouselTrack = $('carousel-track');
+const deckRows = $('deck-rows');
+const revealCardDisplay = $('reveal-card-display');
+const revealStatus = $('reveal-status');
+const chatMessages = $('chat-messages');
+const chatInput = $('chat-input');
+const chatSend = $('chat-send');
+const errorArea = $('error-area');
+const cam = $('cam');
+const FIST_HOLD = 3000;
+const FIST_LOSS_TOLERANCE = 1200;
 
-// ==================== 构建牌组（4行分组） ====================
-function buildCards(){
+// ==================== Star Field ====================
+(function createStars() {
+  const field = $('stars-field');
+  for (let i = 0; i < 200; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    const size = Math.random() * 2.5 + 0.5;
+    s.style.cssText = `width:${size}px;height:${size}px;left:${Math.random()*100}%;top:${Math.random()*100}%;--dur:${Math.random()*4+2}s;animation-delay:${Math.random()*5}s`;
+    field.appendChild(s);
+  }
+})();
+
+// ==================== Phase Navigation ====================
+function showPhase(phase) {
+  state.phase = phase;
+  welcomeScreen.style.display = phase === 'welcome' ? 'block' : 'none';
+  selectionScreen.style.display = phase === 'select' ? 'block' : 'none';
+  revealScreen.style.display = phase === 'reveal' ? 'block' : 'none';
+  if (phase === 'select') {
+    headerSub.classList.add('select-mode');
+    headerSub.style.display = 'none';
+  } else {
+    headerSub.classList.remove('select-mode');
+    headerSub.style.display = phase === 'welcome' ? 'block' : 'none';
+  }
+}
+
+// ==================== Deck Rows Render ====================
+function renderDeckRows() {
   const rows = [
-    {cards:ARCANA,cls:'arcana',label:'大阿尔卡纳',labelCls:'gold'},
-    {cards:WANDS,cls:'wands',label:'权杖组',labelCls:'red'},
-    {cards:CUPS,cls:'cups',label:'圣杯组',labelCls:'blue'},
-    {cards:[...SWORDS,...PENTACLES],cls:'swords',label:'宝剑组 + 星币组',labelCls:'gray'}
+    { cards: ARCANA, cls: 'arcana', label: '大阿尔卡纳', labelCls: 'gold' },
+    { cards: WANDS, cls: 'wands', label: '权杖组', labelCls: 'red' },
+    { cards: CUPS, cls: 'cups', label: '圣杯组', labelCls: 'blue' },
+    { cards: [...SWORDS, ...PENTACLES], cls: 'swords', label: '宝剑组 + 星币组', labelCls: 'gray' },
   ];
-  // 宝剑和星币在同一行，但星币卡用 pentacles 类
-  let html='';
-  for(const row of rows){
-    html+=`<div class="deck-row"><div class="deck-row-label ${row.labelCls}">${row.label} (${row.cards.length}张)</div><div class="deck-scroll">`;
-    for(const c of row.cards){
-      const cls = c.id>=64?'pentacles':(c.id>=50?'swords':row.cls);
-      html+=`<div class="card ${cls}" data-id="${c.id}" data-name="${c.name}">
-        <div class="card-inner"><div class="card-symbol">${c.symbol}</div><div class="card-name">${c.name}</div></div>
-        <svg class="longpress-ring" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg>
+
+  let html = '';
+  for (const row of rows) {
+    html += `<div class="deck-row"><div class="deck-row-label ${row.labelCls}">${row.label} (${row.cards.length}张)</div><div class="deck-scroll" data-row-cls="${row.cls}">`;
+    for (const c of row.cards) {
+      const isActive = c.id === state.activeIndex;
+      const cardCls = c.type || row.cls;
+      html += `<div class="mini-card ${cardCls}${isActive ? ' active' : ''}" data-id="${c.id}" onclick="setActiveCard(${c.id})">
+        <div class="mc-symbol">${c.symbol}</div>
+        <div class="mc-name">${c.name}</div>
       </div>`;
     }
-    html+='</div></div>';
+    html += '</div></div>';
   }
-  deckContainer.innerHTML=html;
-  bindCardEvents();
+  deckRows.innerHTML = html;
 }
 
-function bindCardEvents(){
-  document.querySelectorAll('.card').forEach(card=>{
-    card.addEventListener('touchstart',onTouchStart,{passive:false});
-    card.addEventListener('touchmove',onTouchMove,{passive:false});
-    card.addEventListener('touchend',onTouchEnd);
-    card.addEventListener('dblclick',e=>{e.preventDefault();triggerDraw(card);});
-    card.addEventListener('mousedown',onMouseDown);
-  });
+// ==================== 3D Carousel ====================
+function renderCarousel() {
+  carouselTrack.innerHTML = '';
+  const total = ALL_CARDS.length;
+  const active = state.activeIndex;
+
+  for (let i = 0; i < total; i++) {
+    let offset = i - active;
+
+    // Wrap-around offset
+    if (offset > total / 2) offset -= total;
+    else if (offset < -total / 2) offset += total;
+
+    if (Math.abs(offset) > 6) continue; // only render nearby cards
+
+    const card = ALL_CARDS[i];
+    const el = document.createElement('div');
+    el.className = 'carousel-card';
+    el.setAttribute('data-id', card.id);
+    el.setAttribute('data-name', card.name);
+
+    const rotation = offset * 20;
+    const tx = offset * 200;
+    const tz = (1 - Math.abs(offset) / 6) * 160;
+    const sc = Math.max(0.25, 1.35 - Math.abs(offset) * 0.2);
+    const op = Math.max(0, 1 - Math.abs(offset) * 0.28);
+    const zi = Math.round(100 - Math.abs(offset) * 12);
+    const isCenter = offset === 0;
+
+    el.style.cssText = `transform:translateX(${tx}px) translateZ(${tz}px) rotateY(${rotation}deg) scale(${sc});opacity:${op};z-index:${zi};`;
+
+    const cardTypeCls = card.type || 'arcana';
+    const borderColor = { arcana: '#c9a84c', wands: '#e74c3c', cups: '#5dade2', swords: '#95a5a6', pentacles: '#2ecc71' }[cardTypeCls];
+    let backStyle = `border-color:${borderColor}33`;
+    let frontStyle = `border-color:${borderColor}`;
+
+    el.innerHTML = `<div class="carousel-card-inner">
+      <div class="carousel-card-face card-back" style="${backStyle}">
+        <div class="card-back-pattern">
+          <div class="eye"></div>
+          <div class="line"></div>
+          <div class="line" style="width:30%"></div>
+          <div class="line"></div>
+        </div>
+      </div>
+      <div class="carousel-card-face card-front" style="${frontStyle}">
+        <div class="cf-symbol">${card.symbol}</div>
+        <div class="cf-nameZh">${card.name}</div>
+        <div class="cf-name">${card.nameEn || ''}</div>
+      </div>
+    </div>`;
+
+    if (isCenter) el.classList.add('active-card');
+
+    el.addEventListener('click', () => setActiveCard(card.id));
+    carouselTrack.appendChild(el);
+  }
 }
 
-function onTouchStart(e){
-  e.preventDefault();
-  const card=e.currentTarget;
-  longPressStart=Date.now();
-  isLongPress=false;
-  card.classList.add('highlight');
-  const ring=card.querySelector('.longpress-ring');
-  ring.classList.add('active');
-  const circle=ring.querySelector('circle');
-  circle.style.transition='none';
-  circle.style.strokeDashoffset='56.55';
-  longPressTimer=setInterval(()=>{
-    const elapsed=Date.now()-longPressStart;
-    const progress=Math.min(elapsed/600,1);
-    circle.style.strokeDashoffset=(56.55*(1-progress)).toFixed(2);
-    if(elapsed>=600 && !isLongPress){
-      isLongPress=true;
-      clearInterval(longPressTimer);
-      ring.classList.remove('active');
-      card.classList.remove('highlight');
-      triggerDraw(card);
+function setActiveCard(id) {
+  if (state.phase !== 'select') return;
+  state.activeIndex = id;
+  updateSelectionUI();
+}
+
+function updateSelectionUI() {
+  renderCarousel();
+  renderDeckRows();
+  // Scroll the appropriate row to show the active card
+  setTimeout(() => {
+    const activeMini = document.querySelector(`.mini-card[data-id="${state.activeIndex}"]`);
+    if (activeMini) {
+      activeMini.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
     }
-  },50);
+  }, 150);
 }
 
-function onTouchMove(e){
-  if(longPressTimer){
-    clearInterval(longPressTimer);longPressTimer=null;
-    const card=e.currentTarget;
-    card.classList.remove('highlight');
-    card.querySelector('.longpress-ring').classList.remove('active');
+// ==================== Fist Detection ====================
+function checkIsFist(landmarks) {
+  if (!landmarks || landmarks.length < 21) return false;
+  const tips = [8, 12, 16, 20];
+  const pips = [6, 10, 14, 18];
+  const wrist = landmarks[0];
+  let curled = 0;
+  for (let i = 0; i < 4; i++) {
+    const tip = landmarks[tips[i]];
+    const pip = landmarks[pips[i]];
+    const tipDist = Math.hypot(tip.x - wrist.x, tip.y - wrist.y);
+    const pipDist = Math.hypot(pip.x - wrist.x, pip.y - wrist.y);
+    if (tipDist < pipDist) curled++;
+  }
+  return curled >= 3;
+}
+
+// ==================== Trigger Flip ====================
+function executeFlip() {
+  if (state.flipExecuted || state.phase !== 'select') return;
+  state.flipExecuted = true;
+  state.isFlipped = true;
+  state.fistStartTime = null;
+  state.lastFistSeenTime = null;
+  fistProgressFill.style.width = '0';
+  const card = ALL_CARDS[state.activeIndex];
+  state.flippedCard = card;
+  state.flippedCardId = card.id;
+
+  // Flip the active card in the carousel
+  const activeEl = carouselTrack.querySelector('.active-card');
+  if (activeEl) {
+    activeEl.classList.add('flipped');
+  }
+
+  // After flip animation, transition to reveal
+  setTimeout(() => {
+    showRevealScreen(card);
+  }, 900);
+}
+
+function showRevealScreen(card) {
+  showPhase('reveal');
+  revealCardDisplay.innerHTML = `<div class="flip-result-symbol">${card.symbol}</div>
+    <div class="flip-result-name">${card.nameEn || ''}</div>
+    <div class="flip-result-nameZh">${card.name}</div>`;
+  revealStatus.textContent = '星象已现 · 宿命归位';
+  chatMessages.innerHTML = '';
+  state.chatHistory = [];
+
+  // Send initial AI reading
+  sendInitialReading(card);
+}
+
+async function sendInitialReading(card) {
+  state.isAIThinking = true;
+  errorArea.innerHTML = '';
+  chatMessages.innerHTML = `<div class="chat-msg assistant"><div class="msg-bubble"><div class="thinking-dots"><span></span><span></span><span></span></div></div></div>`;
+
+  const question = state.question.trim() || '寻求命运的综合指引';
+  const prompt = `【占卜启动】
+用户提出的问题是：${question}。
+抽中的塔罗牌是：${card.nameEn || ''} (${card.name})。
+牌面基础释义：${card.meaning}
+
+请作为 Mystic Vision 导师，首先针对用户的【具体问题】给出深度的塔罗分析。结合牌面背后的象征意义，指出目前问题的核心、可能的阻碍以及未来的启示。请保持专业、神秘且充满智慧的语调。使用Markdown格式回复，包括适当的标题、加粗和分段。`;
+
+  try {
+    const content = await streamGemini([{ role: 'user', content: prompt }], true);
+    const rendered = marked.parse(content);
+    chatMessages.innerHTML = `<div class="chat-msg assistant"><div class="msg-bubble">${rendered}</div></div>`;
+    state.chatHistory = [
+      { role: 'user', content: prompt },
+      { role: 'assistant', content: content }
+    ];
+  } catch (e) {
+    errorArea.innerHTML = `<div class="error-msg">导师连接中断: ${e.message || '请检查星路网络'}</div>`;
+    const fallback = marked.parse(card.meaning);
+    chatMessages.innerHTML = `<div class="chat-msg assistant"><div class="msg-bubble"><p><em>（离线解读）</em></p>${fallback}</div></div>`;
+  } finally {
+    state.isAIThinking = false;
+    scrollChatToBottom();
   }
 }
 
-function onTouchEnd(e){
-  if(longPressTimer){clearInterval(longPressTimer);longPressTimer=null;}
-  const card=e.currentTarget;
-  card.classList.remove('highlight');
-  card.querySelector('.longpress-ring').classList.remove('active');
-  if(isLongPress){isLongPress=false;return;}
-  const now=Date.now();
-  if(now-lastTap<400){
-    triggerDraw(card);
-    lastTap=0;
-  }else{
-    lastTap=now;
-    setTimeout(()=>{if(Date.now()-lastTap>=400)lastTap=0;},410);
-  }
-}
-
-function onMouseDown(e){
-  if(e.button!==0)return;
-  const card=e.currentTarget;
-  longPressStart=Date.now();
-  isLongPress=false;
-  const ring=card.querySelector('.longpress-ring');
-  ring.classList.add('active');
-  const circle=ring.querySelector('circle');
-  circle.style.strokeDashoffset='56.55';
-  longPressTimer=setInterval(()=>{
-    const elapsed=Date.now()-longPressStart;
-    circle.style.strokeDashoffset=(56.55*(1-Math.min(elapsed/600,1))).toFixed(2);
-    if(elapsed>=600&&!isLongPress){
-      isLongPress=true;
-      clearInterval(longPressTimer);
-      ring.classList.remove('active');
-      triggerDraw(card);
-    }
-  },50);
-  const upHandler=()=>{
-    clearInterval(longPressTimer);
-    ring.classList.remove('active');
-    document.removeEventListener('mouseup',upHandler);
+// ==================== Gemini Streaming ====================
+async function streamGemini(messages, isSystemPrompt) {
+  const systemInstruction = {
+    role: 'user',
+    parts: [{ text: '你是一位资深的塔罗牌占卜师，你的名字是 Mystic Vision。请根据抽出的牌面含义和用户提供的占卜场景，提供充满智慧、神秘感且具有同理心的解读。输出时必须使用专业的 Markdown 格式以增强阅读体验。请使用中文进行专业的塔罗牌释义和分析。' }]
   };
-  document.addEventListener('mouseup',upHandler);
-}
 
-// ==================== 抽牌流程 ====================
-async function triggerDraw(card){
-  if(selectedCard)return;
-  selectedCard=card;
-  const id=parseInt(card.dataset.id);
-  const cardData=ALL_CARDS.find(c=>c.id===id);
-  // 洗牌动画
-  card.classList.add('shuffling');
-  await sleep(350);
-  card.classList.remove('shuffling');
-  // 惯性滚动到该牌居中
-  const scroll=card.closest('.deck-scroll');
-  if(scroll){
-    const target=card.offsetLeft-card.parentElement.offsetLeft-scroll.clientWidth/2+card.clientWidth/2;
-    scroll.scrollTo({left:target,behavior:'smooth'});
-    await sleep(400);
+  let allMessages;
+  if (isSystemPrompt) {
+    allMessages = [
+      { role: 'user', parts: [{ text: systemInstruction.parts[0].text + '\n\n现在开始占卜解读。' }] },
+      { role: 'model', parts: [{ text: '我准备好了。' }] },
+      ...messages.map(m => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }]
+      }))
+    ];
+  } else {
+    allMessages = messages.map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }]
+    }));
   }
-  // 翻转
-  card.classList.add('flipping');
-  await sleep(650);
-  card.classList.remove('flipping');
-  // 粒子爆出
-  burstParticles(card);
-  // AI 解读
-  showResult(cardData);
-  selectedCard=null;
+
+  const resp = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent?alt=sse&key=${GEMINI_API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: isSystemPrompt ? systemInstruction : undefined,
+        contents: allMessages,
+        generationConfig: { temperature: 0.8, maxOutputTokens: 2048 }
+      })
+    }
+  );
+
+  if (!resp.ok) {
+    const errData = await resp.json().catch(() => ({}));
+    throw new Error(errData.error?.message || `API 响应失败: ${resp.status}`);
+  }
+
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let fullText = '';
+  let leftover = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const chunk = decoder.decode(value, { stream: true });
+    const text = leftover + chunk;
+    const lines = text.split('\n');
+    leftover = lines.pop() || '';
+
+    for (const line of lines) {
+      if (!line.trim() || !line.startsWith('data: ')) continue;
+      const dataStr = line.slice(6);
+      if (dataStr === '[DONE]') continue;
+      try {
+        const parsed = JSON.parse(dataStr);
+        const content = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (content) fullText += content;
+      } catch (_) {}
+    }
+  }
+
+  if (!fullText) throw new Error('AI 未返回有效内容');
+  return fullText;
 }
 
-function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+// ==================== Chat ====================
+async function sendChat() {
+  if (state.isAIThinking || state.phase !== 'reveal') return;
+  const text = chatInput.value.trim();
+  if (!text) return;
 
-// ==================== AI 解读 ====================
-async function showResult(cardData){
-  resultTitle.textContent=`${cardData.symbol} ${cardData.name}`;
-  resultDesc.textContent='正在请求 AI 解读...';
-  overlay.classList.add('show');
-  try{
-    const aiResult=await callGemini(cardData);
-    resultDesc.textContent=aiResult;
-  }catch(e){
-    resultDesc.textContent=cardData.meaning;
+  chatInput.value = '';
+  state.isAIThinking = true;
+  chatSend.disabled = true;
+  errorArea.innerHTML = '';
+
+  // Add user message
+  const userHtml = `<div class="chat-msg user"><div class="msg-bubble">${escapeHtml(text)}</div></div>`;
+  chatMessages.insertAdjacentHTML('beforeend', userHtml);
+
+  // Add placeholder
+  const placeholderId = 'placeholder-' + Date.now();
+  chatMessages.insertAdjacentHTML('beforeend', `<div class="chat-msg assistant" id="${placeholderId}"><div class="msg-bubble"><div class="thinking-dots"><span></span><span></span><span></span></div></div></div>`);
+  scrollChatToBottom();
+
+  const newHistory = [...state.chatHistory, { role: 'user', content: text }];
+
+  try {
+    const content = await streamGemini(newHistory, false);
+    const placeholder = document.getElementById(placeholderId);
+    if (placeholder) {
+      placeholder.innerHTML = `<div class="msg-bubble">${marked.parse(content)}</div>`;
+    }
+    state.chatHistory = [...newHistory, { role: 'assistant', content: content }];
+  } catch (e) {
+    const placeholder = document.getElementById(placeholderId);
+    if (placeholder) placeholder.remove();
+    errorArea.innerHTML = `<div class="error-msg">导师连接中断: ${e.message || '请稍后重试'}</div>`;
+  } finally {
+    state.isAIThinking = false;
+    chatSend.disabled = false;
+    scrollChatToBottom();
   }
 }
 
-async function callGemini(cardData){
-  const API_KEY='YOUR_GEMINI_API_KEY';
-  if(API_KEY==='YOUR_GEMINI_API_KEY')throw new Error('no key');
-  const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({contents:[{parts:[{text:`你是一位塔罗牌大师。请为抽到的牌"${cardData.name}"做一段约200字的中文解读，涵盖正位含义、对当前生活的启示和鼓励。牌面传统寓意：${cardData.meaning}`}]}]})
-  });
-  const data=await resp.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text||cardData.meaning;
+function scrollChatToBottom() {
+  setTimeout(() => {
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }, 100);
 }
 
-function closeResult(){overlay.classList.remove('show');}
-
-// ==================== 粒子背景 ====================
-let particles=[],burstParticles_arr=[];
-function resizeCanvas(){
-  bgCanvas.width=window.innerWidth;
-  bgCanvas.height=window.innerHeight;
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
 }
-window.addEventListener('resize',resizeCanvas);
-resizeCanvas();
 
-class BgParticle{
-  constructor(){this.reset();}
-  reset(){
-    this.x=Math.random()*bgCanvas.width;
-    this.y=Math.random()*bgCanvas.height;
-    this.vx=(Math.random()-.5)*.3;
-    this.vy=(Math.random()-.5)*.3;
-    this.r=Math.random()*2+.5;
-    this.a=Math.random()*.3+.05;
+// Chat input Enter key
+chatInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendChat();
   }
-  update(){
-    this.x+=this.vx;this.y+=this.vy;
-    if(this.x<0||this.x>bgCanvas.width||this.y<0||this.y>bgCanvas.height)this.reset();
-  }
-  draw(){
-    ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);
-    ctx.fillStyle=`rgba(201,168,76,${this.a})`;ctx.fill();
-  }
-}
-class BurstParticle{
-  constructor(x,y){
-    this.x=x;this.y=y;const a=Math.random()*Math.PI*2,s=Math.random()*4+2;
-    this.vx=Math.cos(a)*s;this.vy=Math.sin(a)*s;this.life=1;this.decay=.01+Math.random()*.03;
-    this.r=Math.random()*3+1;
-  }
-  update(){this.x+=this.vx;this.y+=this.vy;this.life-=this.decay;}
-  draw(){
-    ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);
-    ctx.fillStyle=`rgba(201,168,76,${this.life*.7})`;ctx.fill();
-  }
-}
-function burstParticles(card){
-  const rect=card.getBoundingClientRect();
-  const cx=rect.left+rect.width/2,cy=rect.top+rect.height/2;
-  for(let i=0;i<40;i++)burstParticles_arr.push(new BurstParticle(cx,cy));
-}
+});
 
-for(let i=0;i<80;i++)particles.push(new BgParticle());
-
-function animate(){
-  ctx.clearRect(0,0,bgCanvas.width,bgCanvas.height);
-  for(const p of particles){p.update();p.draw();}
-  burstParticles_arr=burstParticles_arr.filter(p=>p.life>0);
-  for(const p of burstParticles_arr){p.update();p.draw();}
-  requestAnimationFrame(animate);
-}
-animate();
-
-// ==================== 手势识别（按需启动） ====================
-let handsInstance=null;
-let gestureFistStart=null;
-const FIST_DURATION=3000; // 握拳3秒
-
-function isFist(landmarks){
-  if(!landmarks||landmarks.length<21)return false;
-  // 指尖y > 对应第二关节y 表示手指卷曲
-  const tips=[8,12,16,20];const dips=[6,10,14,18];
-  for(let i=0;i<4;i++){
-    if(landmarks[tips[i]].y<landmarks[dips[i]].y)return false;
-  }
-  // 拇指: 指尖x偏离IP关节
-  if(landmarks[4].x>landmarks[3].x===landmarks[0].x<landmarks[5].x)return false;
-  return true;
-}
-
-async function initGesture(){
-  if(typeof Hands==='undefined'){
-    console.log('MediaPipe Hands 未加载，使用纯触摸交互');
+// ==================== ASCEND: Start Divination ====================
+async function startDivination() {
+  const q = questionInput.value.trim();
+  if (!q) {
+    questionInput.style.borderColor = '#e74c3c';
+    setTimeout(() => { questionInput.style.borderColor = 'rgba(212,175,55,.12)'; }, 1500);
     return;
   }
-  try{
-    handsInstance=new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${f}`});
-    handsInstance.setOptions({maxNumHands:1,modelComplexity:0,minDetectionConfidence:.7,minTrackingConfidence:.5});
-    handsInstance.onResults(onHandsResults);
 
-    const stream=await navigator.mediaDevices.getUserMedia({video:{width:320,height:240,facingMode:'user'}});
-    camVideo.srcObject=stream;
-    await camVideo.play();
+  state.question = q;
+  ascendBtn.classList.add('loading');
+  ascendBtn.disabled = true;
+  initStatus.textContent = '正在开启窥探之眼...';
 
-    if(typeof Camera==='undefined'){
-      console.log('Camera utils 未加载，使用纯触摸交互');
-      return;
-    }
-    const camera=new Camera(camVideo,{
-      onFrame:async()=>{await handsInstance.send({image:camVideo});},
-      width:320,height:240
+  // Initialize gesture if not ready
+  if (!state.gestureModelReady) {
+    initStatus.textContent = '等待手势引擎就绪...';
+    await new Promise(r => {
+      const check = () => {
+        if (state.gestureModelReady) r();
+        else setTimeout(check, 200);
+      };
+      check();
     });
-    await camera.start();
-    gestureReady=true;
-    gestureStatus.classList.add('active');
-    console.log('手势识别已激活');
-  }catch(e){
-    console.log('手势识别启动失败，使用纯触摸交互:',e.message);
   }
+
+  // Start camera
+  try {
+    await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240, facingMode: 'user' } });
+    cam.srcObject = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240, facingMode: 'user' } });
+    await cam.play();
+
+    // Start MediaPipe Camera
+    if (typeof Camera !== 'undefined' && window._handsInstance) {
+      const camera = new Camera(cam, {
+        onFrame: async () => {
+          if (window._handsInstance && cam) {
+            await window._handsInstance.send({ image: cam });
+          }
+        },
+        width: 320,
+        height: 480
+      });
+      await camera.start();
+      state.gestureActive = true;
+    }
+  } catch (e) {
+    initStatus.textContent = '摄像头权限被拒，将使用触摸交互模式';
+    // Allow proceeding without gesture
+  }
+
+  state.activeIndex = Math.floor(ALL_CARDS.length / 2);
+  state.isFlipped = false;
+  state.flipExecuted = false;
+  state.fistStartTime = null;
+  state.lastFistSeenTime = null;
+  state.lastHandX = null;
+
+  showPhase('select');
+  updateSelectionUI();
+  selectionStatus.textContent = state.gestureActive ? '挥动手部移动 · 握拳3秒翻开命运' : '点击牌面选中 · 握拳3秒或双击翻开命运';
 }
 
-function onHandsResults(results){
-  if(!results.multiHandLandmarks||results.multiHandLandmarks.length===0){
-    gestureFistStart=null;
+// ==================== Reset ====================
+function resetApp() {
+  state.question = '';
+  state.isFlipped = false;
+  state.flipExecuted = false;
+  state.flippedCard = null;
+  state.chatHistory = [];
+  state.activeIndex = Math.floor(ALL_CARDS.length / 2);
+  state.fistStartTime = null;
+  state.lastFistSeenTime = null;
+  state.lastHandX = null;
+  questionInput.value = '';
+  chatMessages.innerHTML = '';
+  errorArea.innerHTML = '';
+  chatInput.value = '';
+  ascendBtn.classList.remove('loading');
+  ascendBtn.disabled = false;
+  initStatus.textContent = '正在引导星辰之力...';
+  showPhase('welcome');
+}
+
+// ==================== MediaPipe Gesture ====================
+function initGesture() {
+  if (typeof Hands === 'undefined') {
+    console.log('MediaPipe Hands 未加载，使用触摸交互');
+    initStatus.textContent = '手势引擎未加载 · 使用触摸交互';
+    state.gestureModelReady = true;
     return;
   }
-  const lm=results.multiHandLandmarks[0];
-  if(isFist(lm)){
-    if(!gestureFistStart)gestureFistStart=Date.now();
-    else if(Date.now()-gestureFistStart>=FIST_DURATION){
-      gestureFistStart=null;
-      triggerDrawByGesture();
-    }
-  }else{
-    gestureFistStart=null;
+
+  try {
+    const hands = new Hands({
+      locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${f}`
+    });
+    hands.setOptions({
+      maxNumHands: 1,
+      modelComplexity: 0,
+      minDetectionConfidence: 0.6,
+      minTrackingConfidence: 0.5
+    });
+
+    hands.onResults(results => {
+      if (state.phase !== 'select' || state.flipExecuted) return;
+      if (!state.gestureActive) return;
+
+      const now = Date.now();
+      const hasHand = results.multiHandLandmarks && results.multiHandLandmarks.length > 0;
+
+      if (hasHand) {
+        const hand = results.multiHandLandmarks[0];
+        const x = hand[0].x;
+        const isF = checkIsFist(hand);
+
+        if (isF) {
+          state.lastFistSeenTime = now;
+          if (state.fistStartTime === null) {
+            state.fistStartTime = now;
+          }
+          const elapsed = now - state.fistStartTime;
+          const progress = Math.min(elapsed / FIST_HOLD, 1);
+          fistProgressFill.style.width = `${progress * 100}%`;
+
+          if (elapsed >= FIST_HOLD) {
+            executeFlip();
+          }
+        } else {
+          const timeSinceFist = state.lastFistSeenTime ? now - state.lastFistSeenTime : Infinity;
+          if (timeSinceFist > FIST_LOSS_TOLERANCE) {
+            state.fistStartTime = null;
+            state.lastFistSeenTime = null;
+            fistProgressFill.style.width = '0';
+
+            // Hand wave navigation
+            if (state.lastHandX !== null && state.lastHandX !== undefined) {
+              const delta = x - state.lastHandX;
+              if (Math.abs(delta) > 0.025) {
+                const move = delta > 0 ? -1 : 1;
+                let next = state.activeIndex + move;
+                if (next < 0) next = ALL_CARDS.length - 1;
+                if (next >= ALL_CARDS.length) next = 0;
+                state.activeIndex = next;
+                updateSelectionUI();
+              }
+            }
+          }
+        }
+        state.lastHandX = x;
+      } else {
+        const timeSinceFist = state.lastFistSeenTime ? now - state.lastFistSeenTime : Infinity;
+        if (timeSinceFist > FIST_LOSS_TOLERANCE) {
+          state.fistStartTime = null;
+          state.lastFistSeenTime = null;
+          state.lastHandX = null;
+          fistProgressFill.style.width = '0';
+        }
+      }
+    });
+
+    window._handsInstance = hands;
+    state.gestureModelReady = true;
+    initStatus.textContent = '星辰之力已就绪';
+    console.log('MediaPipe 手势识别已就绪');
+  } catch (e) {
+    console.log('手势引擎初始化失败:', e.message);
+    state.gestureModelReady = true;
+    initStatus.textContent = '星辰之力已就绪 · 触摸交互';
   }
 }
 
-function triggerDrawByGesture(){
-  const cards=document.querySelectorAll('.card');
-  if(cards.length===0)return;
-  const idx=Math.floor(Math.random()*cards.length);
-  triggerDraw(cards[idx]);
-}
+// ==================== Init ====================
+showPhase('welcome');
+initStatus.textContent = '正在引导星辰之力...';
+setTimeout(initGesture, 500);
 
-// ==================== 启动 ====================
-buildCards();
-// 手势识别异步初始化，不阻塞牌组渲染
-setTimeout(initGesture,500);
+// ==================== Double-click on mini cards to trigger flip ====================
+deckRows.addEventListener('dblclick', e => {
+  if (state.phase !== 'select' || state.flipExecuted) return;
+  const miniCard = e.target.closest('.mini-card');
+  if (miniCard) {
+    const id = parseInt(miniCard.dataset.id);
+    if (id === state.activeIndex) {
+      executeFlip();
+    } else {
+      setActiveCard(id);
+      setTimeout(() => executeFlip(), 400);
+    }
+  }
+});
+
+// ==================== Long press on carousel or mini cards ====================
+let deckLongPressTimer = null;
+deckRows.addEventListener('touchstart', e => {
+  if (state.phase !== 'select' || state.flipExecuted) return;
+  const card = e.target.closest('.mini-card');
+  if (!card) return;
+  deckLongPressTimer = setTimeout(() => {
+    const id = parseInt(card.dataset.id);
+    if (id === state.activeIndex) {
+      executeFlip();
+    } else {
+      setActiveCard(id);
+      setTimeout(() => executeFlip(), 400);
+    }
+  }, 600);
+}, { passive: true });
+
+deckRows.addEventListener('touchend', () => { clearTimeout(deckLongPressTimer); });
+deckRows.addEventListener('touchmove', () => { clearTimeout(deckLongPressTimer); });
+
+// Also on carousel
+carouselTrack.addEventListener('touchstart', e => {
+  if (state.phase !== 'select' || state.flipExecuted) return;
+  const card = e.target.closest('.carousel-card');
+  if (!card) return;
+  deckLongPressTimer = setTimeout(() => {
+    const id = parseInt(card.dataset.id);
+    if (id === state.activeIndex) {
+      executeFlip();
+    } else {
+      setActiveCard(id);
+      setTimeout(() => executeFlip(), 400);
+    }
+  }, 600);
+}, { passive: true });
+
+carouselTrack.addEventListener('touchend', () => { clearTimeout(deckLongPressTimer); });
+carouselTrack.addEventListener('touchmove', () => { clearTimeout(deckLongPressTimer); });
+
+// Keyboard navigation for debugging
+document.addEventListener('keydown', e => {
+  if (state.phase !== 'select') return;
+  if (e.key === 'ArrowLeft') {
+    let next = state.activeIndex - 1;
+    if (next < 0) next = ALL_CARDS.length - 1;
+    state.activeIndex = next;
+    updateSelectionUI();
+  } else if (e.key === 'ArrowRight') {
+    let next = state.activeIndex + 1;
+    if (next >= ALL_CARDS.length) next = 0;
+    state.activeIndex = next;
+    updateSelectionUI();
+  } else if (e.key === 'Enter' || e.key === ' ') {
+    executeFlip();
+  }
+});
 </script>
 </body>
 </html>
