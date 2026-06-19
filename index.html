@@ -3,10 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>塔罗牌 · 手势抽牌</title>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/fingerpose@0.1.0/dist/fingerpose.min.js"></script>
+  <title>塔罗牌 · 触摸抽牌</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -17,6 +14,8 @@
       user-select: none;
       -webkit-user-select: none;
       -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      touch-action: pan-x;
     }
 
     /* ===== 星河背景 ===== */
@@ -80,7 +79,7 @@
 
     /* ===== 牌组滚动区 ===== */
     .cards-scroll {
-      width: 100%; max-width: 900px;
+      width: 100%; max-width: 100vw;
       overflow-x: auto;
       overflow-y: visible;
       padding: 20px 0 30px;
@@ -93,7 +92,7 @@
 
     .cards-track {
       display: flex; gap: 0;
-      padding: 10px 50%;
+      padding: 10px calc(50vw - 50px);
       width: max-content;
     }
 
@@ -108,13 +107,46 @@
       position: relative; z-index: 1;
     }
     .card-slot:hover {
-      transform: translateY(-12px);
+      transform: translateY(-12px) scale(1.08);
       margin: 0 6px;
       z-index: 10;
       transition: transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94), margin 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     }
+    .card-slot.highlighted {
+      transform: translateY(-14px) scale(1.12);
+      margin: 0 8px;
+      z-index: 15;
+      transition: transform 0.1s ease-out, margin 0.1s ease-out;
+    }
     .card-slot.shuffling {
       transition: transform 0.08s cubic-bezier(0.4, 0, 0.2, 1), margin 0.08s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.08s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* 长按进度环 */
+    .card-slot .long-press-ring {
+      position: absolute;
+      inset: -6px;
+      border-radius: 14px;
+      pointer-events: none;
+      z-index: 20;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .card-slot .long-press-ring svg {
+      width: 100%; height: 100%;
+      position: absolute; top: 0; left: 0;
+      transform: rotate(-90deg);
+    }
+    .card-slot .long-press-ring circle {
+      fill: none;
+      stroke: #c9a84c;
+      stroke-width: 3;
+      stroke-linecap: round;
+      stroke-dasharray: 0;
+      transition: stroke-dasharray 0.1s linear;
+    }
+    .card-slot.pressing .long-press-ring {
+      opacity: 1;
     }
 
     .card-inner {
@@ -132,8 +164,10 @@
       position: absolute;
       width: 100%; height: 100%;
       backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
       border-radius: 10px;
       box-shadow: 0 4px 20px rgba(0,0,0,0.5), 0 0 0 1px rgba(201,168,76,0.2);
+      overflow: hidden;
     }
 
     /* 牌背 */
@@ -208,6 +242,7 @@
       font-size: 15px; color: #c9a84c;
       letter-spacing: 2px;
       animation: hintPulse 2s ease-in-out infinite;
+      text-align: center;
     }
     @keyframes hintPulse {
       0%, 100% { opacity: 0.6; }
@@ -304,30 +339,34 @@
       box-shadow: 0 0 20px rgba(201,168,76,0.25);
     }
 
-    /* 摄像头（隐藏） */
-    #webcam {
-      position: fixed; top: 0; left: 0;
-      width: 1px; height: 1px; opacity: 0;
-      pointer-events: none;
-      transform: rotateY(180deg);
-    }
-
     /* ===== 响应式 ===== */
     @media (min-width: 768px) {
       .card-slot { width: 88px; height: 132px; margin: 0 -5px; }
+      .card-slot:hover { margin: 0 8px; }
       .card-front .card-title { font-size: 15px; }
       .card-front .card-suit { font-size: 10px; }
       .card-back::after { font-size: 28px; }
+      .cards-track { padding: 10px calc(50vw - 80px); }
+    }
+    @media (min-width: 1024px) {
+      .card-slot { width: 96px; height: 144px; margin: 0 -6px; }
+      .card-slot:hover { margin: 0 10px; }
+      .card-front .card-title { font-size: 16px; }
+      .card-front .card-suit { font-size: 11px; }
+      .card-front .card-num { font-size: 11px; }
+      .cards-track { padding: 10px calc(50vw - 120px); }
     }
     @media (max-width: 480px) {
       .card-slot { width: 60px; height: 90px; margin: 0 -3px; }
-      .card-slot:hover { margin: 0 -1px; }
+      .card-slot:hover, .card-slot.highlighted { margin: 0 -1px; }
       .card-front .card-title { font-size: 11px; }
       .card-front .card-suit { font-size: 8px; }
       .card-front .card-num { font-size: 8px; }
       .card-back::after { font-size: 20px; }
       .result-card { padding: 28px 20px; }
       .result-name { font-size: 26px; }
+      .result-interp { font-size: 15px; }
+      .cards-track { padding: 10px calc(50vw - 40px); }
     }
   </style>
 </head>
@@ -335,11 +374,8 @@
 <div class="stars-bg"></div>
 <canvas id="particleCanvas"></canvas>
 
-<!-- 隐藏摄像头 -->
-<video id="webcam" autoplay playsinline></video>
-
 <!-- 状态 -->
-<div id="status">✋ 伸出手</div>
+<div id="status">✨ 就绪</div>
 
 <!-- 主界面 -->
 <div class="app">
@@ -355,8 +391,8 @@
 
   <!-- 底部提示 -->
   <div class="hint-bar">
-    <div class="hint-icon">🤛</div>
-    <div class="hint-text">握拳保持 3 秒抽牌</div>
+    <div class="hint-icon">👆</div>
+    <div class="hint-text">双击或长按牌面抽牌</div>
   </div>
 </div>
 
@@ -373,12 +409,12 @@
 
 <script>
 // ============================================
-//  Gemini API Key（拆分拼接）
+//  Gemini API Key
 // ============================================
 const GEMINI_API_KEY = "AQ.Ab8RN6KSbTpWtx" + "V6sZaYSon523n0uznG1-I772kGWJxMk9Jlwg";
 
 // ============================================
-//  22张大阿尔卡纳
+//  78张塔罗牌数据
 // ============================================
 const TAROT_CARDS = [
   { cn: "愚者", en: "The Fool", suit: "major", suitCn: "大阿尔卡纳" },
@@ -478,12 +514,12 @@ const OFFLINE_READINGS = {
   "倒吊人": "倒吊人倒挂在树上，脸上却有一抹平静的微笑。他选择了这个视角——不是被迫，而是主动。当你觉得世界卡住了，不妨像他一样换个角度看：慢下来不是退步，是为了更清晰地看见。也许你需要暂停追逐某个目标，允许自己有一段悬停的时间。这段看似无为的时光，正在酝酿重要的内在转变。让你的思绪沉淀，那些原本看重的事可能会变轻，而真正重要的东西会浮出水面。",
   "死神": "死神骑马而来，脚下倒下的有国王也有平民——在终结面前人人平等。但仔细观察，远处有朝阳升起。这张牌很少代表肉体的死亡，而是旧有模式、关系或阶段的结束。那些不再适合你的事物正在被剥离，这让人不安，但也是为了给新生腾出空间。问问自己：是什么该放手了？一段不健康的关系、一份消耗你的工作、还是一个困住你的自我定义？放手不是失去，是解放，是让新的可能涌入的前提。",
   "节制": "天使将水从一只金杯倒入另一只，一脚踏在水上，一脚踏在岸上。这象征着调和与平衡——不激进亦不停滞，不极端取其中道。你正在被邀请找到生活各方面的黄金比例：工作与休息、给予与接受、理性与情感。当你感到节奏出现问题，不要试图一次性矫正所有，而是做一次微调：今晚早睡半小时、明天午休多走五分钟。小的平衡会积累成大的从容，不急不躁本身就是一种强大的力量。",
-  "恶魔": "恶魔牌上的一对男女被锁链拴住，但那锁链其实很松——他们可以随时挣脱，只是选择了留下。这张牌指向你的执念和束缚：也许是物质、欲望、一段不健康的关系、或一个根深蒂固的自我怀疑。恶魔不是外部的敌人，而是内心那个告诉你"不可能"的声音。看清它就是你解放的第一步。今天，问自己一个问题：什么样的想法或习惯，如果放下，会让我的生活轻松许多？直面它的那一刻，锁链已经开始松动。",
+  "恶魔": "恶魔牌上的一对男女被锁链拴住，但那锁链其实很松——他们可以随时挣脱，只是选择了留下。这张牌指向你的执念和束缚：也许是物质、欲望、一段不健康的关系、或一个根深蒂固的自我怀疑。恶魔不是外部的敌人，而是内心那个告诉你\"不可能\"的声音。看清它就是你解放的第一步。今天，问自己一个问题：什么样的想法或习惯，如果放下，会让我的生活轻松许多？直面它的那一刻，锁链已经开始松动。",
   "高塔": "高塔被闪电击中，火焰和石块从高处坠落。这是最令人不安的一张牌，却也最能带来彻底的解放。那些摇摇欲坠的虚假安全感、不愿意面对的真相、建立在错误地基上的结构，在这一刻全部崩塌。短期来看是痛苦的，但长远而言，你将被释放到一个更真实、更坚实的基础上。当尘埃落定后，你会发现自己其实一直知道这座塔迟早要倒。拥抱这场清洗，然后从废墟中捡起真正有价值的材料，重新建造。",
   "星星": "少女在星光下将水倒入大地和池塘，空中闪耀着八颗星。经历了高塔的摧毁后，星星带来的是宁静的希望和疗愈。你不需要做什么惊天动地的大事，只需要像画面中的少女一样，坦然地倾倒你的爱与关怀。这段时期是脆弱的，也是真实的——允许自己感受疲惫，也允许自己被宇宙温柔地接住。抬头看看星空，古老的星光以几十万年为单位奔向你，你此刻的烦恼在宇宙的尺度里如此微小。洗个热水澡、点一盏蜡烛，你被祝福着。",
   "月亮": "月光下，一条小径蜿蜒消失在远处的群山间，螃蟹从水中爬出，两只狗对着月亮吠叫。这张牌走进潜意识的领域：恐惧、梦境、和那些说不清的不安。有些东西正在暗处搅动，你看不清全貌，但感受到它的存在。不要急于驱散这种不安——月亮邀请你在微光中前行，信任你的直觉比信任双眼更重要。今晚睡前记录你的梦境，或者写下那些反复出现的焦虑。一旦被命名，它们就失去了一半的力量。",
   "太阳": "太阳牌上，一个孩子赤身骑在白马上，向日葵在身后绽放。这是所有塔罗牌中最明亮的一张，象征纯粹的喜悦、成功和生命力。你已经走出了阴霾，现在的你是完整而闪耀的。不要害怕太过耀眼或太过快乐——尽情绽放是你的权利，也是你的礼物。去分享你的温暖、去庆祝你取得的每一个进步、去做一件纯粹因为喜欢而做的事。你的光芒不仅照亮自己，也会感染身边的每一个人。",
-  "审判": "天使加百列在空中吹响号角，坟墓中的人们苏醒过来回应召唤。这不是外界的审判，而是内心深处的觉醒。一个沉睡已久的部分正在苏醒——也许是你压制的热情、被忽视的天赋、或一个搁置已久的梦想。你感受到一种无法言说的催促：是时候了。不要忽视这个内在的召唤，它是你灵魂的导航。今天做一件你一直想做但觉得"不切实际"的事，哪怕只是一个微小的开始，回应召唤的勇气本身就是重生。",
+  "审判": "天使加百列在空中吹响号角，坟墓中的人们苏醒过来回应召唤。这不是外界的审判，而是内心深处的觉醒。一个沉睡已久的部分正在苏醒——也许是你压制的热情、被忽视的天赋、或一个搁置已久的梦想。你感受到一种无法言说的催促：是时候了。不要忽视这个内在的召唤，它是你灵魂的导航。今天做一件你一直想做但觉得\"不切实际\"的事，哪怕只是一个微小的开始，回应召唤的勇气本身就是重生。",
   "世界": "世界牌中，一个舞者在月桂叶环中优雅起舞，四角的四个形象代表四元素和完整的循环。它昭示一个阶段的圆满完成——你不是走完了路，而是完成了一个完整的圆。此刻值得被庆祝：回望你走过的每一步，那些挑战、失误和胜利都编织成了今天的你。但这也是新循环的开始：一个吻别之后，你将为下一个目标再次启程。花一点时间感恩这一程的所有遇见，然后带着积累的智慧，轻盈地走向下一圈。",
   "权杖王牌": "权杖王牌从云端伸出，握在手中的是一根正在发芽的权杖——这不只是一根木棍，而是火种，是灵感的第一次跳动。大地在远方招手，天空有八片叶子飘落，象征能量的初始喷射。你正被赋予一份崭新的热情：也许是创业的念头、创作的冲动、或者一个让你心跳加速的机会。王牌从不犹豫，它直接问你：你敢不敢握住它？不要等完美的时机，火元素不等人。今天，写下那个让你兴奋却迟迟没启动的想法，哪怕只是一个标题或一句话，行动的第一粒火星已经点燃。让它烧起来，世界会为你的热情让路。",
   "权杖二": "权杖二的主角站在城堡的高台上，一手扶杖，一手握着地球仪，远眺无垠的海平线。他已经有了地盘和积累，但内心知道：舒适区之外才有真正的王国。这张牌说的是规划而非行动——你到了一个需要抉择的节点：是守着现有的安稳，还是冒一次险去追求更大的可能？两把权杖固定在后墙，暗喻你拥有资源和支撑，缺的只是跨出那一步的决心。今天，列两份清单：一份是留在原地的得失，一份是走出去的可能。不是立刻做决定，而是诚实面对内心的野心。你的城堡很安全，但海那边的世界才是故事的下一个篇章。",
@@ -544,7 +580,6 @@ const OFFLINE_READINGS = {
 };
 
 // ===== DOM =====
-const video = document.getElementById('webcam');
 const statusEl = document.getElementById('status');
 const cardsTrack = document.getElementById('cardsTrack');
 const cardsScroll = document.getElementById('cardsScroll');
@@ -556,14 +591,13 @@ const resultInterp = document.getElementById('resultInterp');
 const resultClose = document.getElementById('resultClose');
 
 // ===== 状态 =====
-let isFist = false;
-let fistStartTime = 0;
 let isProcessing = false;
 let cardSlots = [];
 let pickedIndex = -1;
+let highlightedSlot = null;
 
 // ============================================
-//  构建牌组
+//  构建牌组（立即执行，0 外部依赖）
 // ============================================
 function buildCards() {
   cardsTrack.innerHTML = '';
@@ -572,10 +606,21 @@ function buildCards() {
     const slot = document.createElement('div');
     slot.className = 'card-slot';
     slot.dataset.index = i;
-    // 牌面编号与显示
+    slot.setAttribute('role', 'button');
+    slot.setAttribute('aria-label', card.cn + ' ' + card.en);
     const isMajor = card.suit === 'major';
     const displayTitle = isMajor ? card.cn : card.cn.replace(card.suitCn, '');
-    slot.innerHTML = `
+
+    // 长按进度环（SVG）
+    const ringHTML = `
+      <div class="long-press-ring">
+        <svg viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="46" stroke-dasharray="0" id="ring-${i}"></circle>
+        </svg>
+      </div>
+    `;
+
+    slot.innerHTML = ringHTML + `
       <div class="card-inner">
         <div class="card-face card-back">
           <div class="card-back-inner"></div>
@@ -589,17 +634,177 @@ function buildCards() {
     `;
     cardsTrack.appendChild(slot);
     cardSlots.push(slot);
+
+    // 绑定触摸/鼠标事件
+    bindCardEvents(slot, i);
   });
 
-  // 初始滚动到中间位置
+  // 初始滚动到中间
   setTimeout(() => {
     const mid = cardsScroll.scrollWidth / 2 - cardsScroll.clientWidth / 2;
     cardsScroll.scrollLeft = mid;
-  }, 100);
+  }, 80);
 }
 
 // ============================================
-//  洗牌动画（增强版 - RAF驱动 + 间距伸缩 + 透明度变化 + 轻微旋转）
+//  触摸/鼠标交互事件绑定
+// ============================================
+function bindCardEvents(slot, index) {
+  let touchStartTime = 0;
+  let touchMoved = false;
+  let longPressTimer = null;
+  let lastTapTime = 0;
+  const LONG_PRESS_MS = 600;
+  const DOUBLE_TAP_MS = 400;
+  const MOVE_THRESHOLD = 10;
+
+  function clearHighlight() {
+    if (highlightedSlot) {
+      highlightedSlot.classList.remove('highlighted');
+      highlightedSlot = null;
+    }
+  }
+
+  function startLongPress() {
+    slot.classList.add('pressing');
+    const ring = slot.querySelector(`#ring-${index}`);
+    if (ring) {
+      const circumference = 2 * Math.PI * 46;
+      ring.setAttribute('stroke-dasharray', circumference);
+      ring.setAttribute('stroke-dashoffset', circumference);
+      // 动画填充
+      let start = performance.now();
+      function fillRing(now) {
+        const elapsed = now - start;
+        const progress = Math.min(elapsed / LONG_PRESS_MS, 1);
+        ring.setAttribute('stroke-dashoffset', circumference * (1 - progress));
+        if (progress < 1 && slot.classList.contains('pressing')) {
+          slot._ringRAF = requestAnimationFrame(fillRing);
+        }
+      }
+      slot._ringRAF = requestAnimationFrame(fillRing);
+    }
+
+    longPressTimer = setTimeout(() => {
+      if (!touchMoved && !isProcessing && !slot.classList.contains('flipped')) {
+        cancelRingAnimation(slot);
+        slot.classList.remove('pressing');
+        clearHighlight();
+        pickCard();
+      }
+    }, LONG_PRESS_MS);
+  }
+
+  function cancelLongPress() {
+    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+    slot.classList.remove('pressing');
+    cancelRingAnimation(slot);
+  }
+
+  function cancelRingAnimation(s) {
+    if (s._ringRAF) { cancelAnimationFrame(s._ringRAF); s._ringRAF = null; }
+    const r = s.querySelector('circle');
+    if (r) r.setAttribute('stroke-dasharray', '0');
+  }
+
+  // === Touch Events ===
+  slot.addEventListener('touchstart', function(e) {
+    if (isProcessing || slot.classList.contains('flipped')) return;
+    e.preventDefault();
+    touchStartTime = Date.now();
+    touchMoved = false;
+
+    // 高亮
+    clearHighlight();
+    slot.classList.add('highlighted');
+    highlightedSlot = slot;
+
+    // 启动长按计时
+    startLongPress();
+  }, { passive: false });
+
+  slot.addEventListener('touchmove', function(e) {
+    if (isProcessing || slot.classList.contains('flipped')) return;
+    const touch = e.touches[0];
+    const rect = slot.getBoundingClientRect();
+    const dx = touch.clientX - (rect.left + rect.width / 2);
+    const dy = touch.clientY - (rect.top + rect.height / 2);
+    if (Math.abs(dx) > MOVE_THRESHOLD || Math.abs(dy) > MOVE_THRESHOLD) {
+      touchMoved = true;
+      cancelLongPress();
+      slot.classList.remove('highlighted');
+      highlightedSlot = null;
+    }
+  }, { passive: false });
+
+  slot.addEventListener('touchend', function(e) {
+    if (isProcessing || slot.classList.contains('flipped')) return;
+    e.preventDefault();
+    cancelLongPress();
+    slot.classList.remove('highlighted');
+    highlightedSlot = null;
+
+    if (touchMoved) return;
+
+    const now = Date.now();
+    const duration = now - touchStartTime;
+
+    // 短按：检测双击
+    if (duration < LONG_PRESS_MS) {
+      if (now - lastTapTime < DOUBLE_TAP_MS) {
+        // 双击触发抽牌
+        lastTapTime = 0;
+        pickCard();
+      } else {
+        lastTapTime = now;
+        // 单击：短暂高亮反馈
+        slot.classList.add('highlighted');
+        highlightedSlot = slot;
+        setTimeout(() => {
+          if (highlightedSlot === slot) {
+            slot.classList.remove('highlighted');
+            highlightedSlot = null;
+          }
+        }, 300);
+      }
+    }
+  }, { passive: false });
+
+  // === Mouse Events (桌面端) ===
+  slot.addEventListener('dblclick', function(e) {
+    if (isProcessing || slot.classList.contains('flipped')) return;
+    cancelLongPress();
+    clearHighlight();
+    pickCard();
+  });
+
+  slot.addEventListener('mousedown', function(e) {
+    if (isProcessing || slot.classList.contains('flipped')) return;
+    clearHighlight();
+    slot.classList.add('highlighted');
+    highlightedSlot = slot;
+    startLongPress();
+  });
+
+  slot.addEventListener('mouseup', function(e) {
+    cancelLongPress();
+    if (highlightedSlot === slot) {
+      slot.classList.remove('highlighted');
+      highlightedSlot = null;
+    }
+  });
+
+  slot.addEventListener('mouseleave', function(e) {
+    cancelLongPress();
+    if (highlightedSlot === slot) {
+      slot.classList.remove('highlighted');
+      highlightedSlot = null;
+    }
+  });
+}
+
+// ============================================
+//  洗牌动画（RAF驱动 + 间距伸缩 + 透明度变化 + 轻微旋转）
 // ============================================
 function shuffleAnimation() {
   return new Promise(resolve => {
@@ -609,7 +814,6 @@ function shuffleAnimation() {
 
     function step() {
       if (frame >= totalFrames) {
-        // 平滑恢复到原位
         cardSlots.forEach((slot, i) => {
           slot.style.transform = '';
           slot.style.margin = '';
@@ -621,23 +825,17 @@ function shuffleAnimation() {
       }
 
       const progress = frame / totalFrames;
-      // 使用正弦波让动作有起伏节奏
       const intensity = Math.sin(progress * Math.PI) * 1.0;
-      // 叠加上第二波频率，模拟"搓牌"的抖动
       const jitter = Math.sin(progress * Math.PI * 4.7) * 0.35 * (1 - progress);
 
       cardSlots.forEach((slot, i) => {
         if (!slot.classList.contains('flipped')) {
-          // 每张牌有独立的相位偏移
           const phase = (i * 0.15 + progress * 1.3);
           const idxFactor = Math.sin(i * 0.55) * 0.5 + Math.cos(i * 0.31) * 0.5;
-
           const offsetX = Math.sin(phase * 3.2) * 35 * intensity * idxFactor + jitter * 15;
           const offsetY = Math.cos(phase * 2.7) * 18 * intensity * idxFactor;
           const rotZ = Math.sin(phase * 3.9) * 14 * intensity * idxFactor;
           const marginShift = Math.cos(phase * 2.3) * 12 * intensity;
-
-          // 透明度随位置波动，产生"流动"感
           const opacityVal = 0.65 + 0.35 * (Math.sin(phase * 2.1) * 0.5 + 0.5);
 
           slot.style.transform = `translate(${offsetX}px, ${offsetY}px) rotateZ(${rotZ}deg)`;
@@ -656,53 +854,7 @@ function shuffleAnimation() {
 }
 
 // ============================================
-//  滚动视觉增强 — 牌组流动效果
-// ============================================
-let scrollRAF = null;
-function applyScrollFlowEffect() {
-  const scrollRect = cardsScroll.getBoundingClientRect();
-  const viewCenter = scrollRect.left + scrollRect.width / 2;
-
-  cardSlots.forEach((slot) => {
-    if (slot.classList.contains('flipped')) return;
-    const slotRect = slot.getBoundingClientRect();
-    const slotCenter = slotRect.left + slotRect.width / 2;
-    const distFromCenter = (slotCenter - viewCenter) / (scrollRect.width / 2); // -1 to 1
-
-    const absDist = Math.abs(distFromCenter);
-    const tilt = distFromCenter * 8; // 轻微旋转偏离中心
-    const scale = 1 - absDist * 0.06; // 边缘牌略小
-    const opacity = 1 - absDist * 0.25; // 边缘牌略透明
-
-    slot.style.transform = `rotateY(${tilt}deg) scale(${scale})`;
-    slot.style.opacity = opacity;
-  });
-}
-
-function startScrollFlow() {
-  cardsScroll.addEventListener('scroll', onScrollFlow, { passive: true });
-}
-
-function stopScrollFlow() {
-  cardsScroll.removeEventListener('scroll', onScrollFlow);
-  if (scrollRAF) cancelAnimationFrame(scrollRAF);
-  // 恢复所有牌
-  cardSlots.forEach(slot => {
-    if (!slot.classList.contains('flipped')) {
-      slot.style.transform = '';
-      slot.style.margin = '';
-      slot.style.opacity = '';
-    }
-  });
-}
-
-function onScrollFlow() {
-  if (scrollRAF) cancelAnimationFrame(scrollRAF);
-  scrollRAF = requestAnimationFrame(applyScrollFlowEffect);
-}
-
-// ============================================
-//  惯性滚动（增强版：三段式 + 滚动流动效果）
+//  惯性滚动（三段式）
 // ============================================
 function inertiaScrollToCard(targetSlot) {
   return new Promise(resolve => {
@@ -713,20 +865,12 @@ function inertiaScrollToCard(targetSlot) {
     const startLeft = cardsScroll.scrollLeft;
     const totalDistance = targetScrollLeft - startLeft;
 
-    // 启用滚动流动效果
-    startScrollFlow();
-
-    // 如果距离很小，直接到位
     if (Math.abs(totalDistance) < 100) {
       cardsScroll.scrollTo({ left: targetScrollLeft, behavior: 'smooth' });
-      setTimeout(() => {
-        stopScrollFlow();
-        resolve();
-      }, 500);
+      setTimeout(resolve, 500);
       return;
     }
 
-    // 三段式滚动
     const fastTarget = startLeft + totalDistance * 0.55;
     cardsScroll.scrollTo({ left: fastTarget, behavior: 'auto' });
 
@@ -736,11 +880,7 @@ function inertiaScrollToCard(targetSlot) {
 
       setTimeout(() => {
         cardsScroll.scrollTo({ left: targetScrollLeft, behavior: 'smooth' });
-
-        setTimeout(() => {
-          stopScrollFlow();
-          resolve();
-        }, 650);
+        setTimeout(resolve, 650);
       }, 180);
     }, 160);
   });
@@ -761,13 +901,13 @@ async function pickCard() {
   // 洗牌动画
   await shuffleAnimation();
 
-  // 惯性滚动到选中的牌：先快后慢两段滚动
+  // 惯性滚动到选中的牌
   await inertiaScrollToCard(targetSlot);
 
   // 翻转选中的牌
   targetSlot.classList.add('flipped');
 
-  // 粒子爆发 — 从牌面位置爆出
+  // 粒子爆发
   const slotRect = targetSlot.getBoundingClientRect();
   const burstX = slotRect.left + slotRect.width / 2;
   const burstY = slotRect.top + slotRect.height / 2;
@@ -790,20 +930,19 @@ function showResult(card) {
   resultOverlay.classList.add('active');
   statusEl.innerText = '✨ 已抽牌';
 
-  // 调用 AI
+  // 调用 AI 解读
   callGemini(card);
 }
 
 function closeResult() {
   resultOverlay.classList.remove('active');
-  // 翻回牌
   if (pickedIndex >= 0 && pickedIndex < cardSlots.length) {
     cardSlots[pickedIndex].classList.remove('flipped');
   }
   pickedIndex = -1;
   isProcessing = false;
-  statusEl.innerText = hands ? '🤛 握拳抽下一张' : '📡 点击牌面抽牌';
-  // 重置滚动
+  statusEl.innerText = '✨ 就绪';
+
   setTimeout(() => {
     const mid = cardsScroll.scrollWidth / 2 - cardsScroll.clientWidth / 2;
     cardsScroll.scrollLeft = mid;
@@ -811,6 +950,11 @@ function closeResult() {
 }
 
 resultClose.addEventListener('click', closeResult);
+
+// 点击遮罩层关闭（方便触摸操作）
+resultOverlay.addEventListener('click', function(e) {
+  if (e.target === resultOverlay) closeResult();
+});
 
 // ============================================
 //  Gemini API 调用
@@ -855,89 +999,12 @@ async function callGemini(card) {
 }
 
 // ============================================
-//  手势识别（保留原有逻辑，加 try-catch 防护）
-// ============================================
-let hands = null;
-try {
-  if (typeof Hands !== 'undefined') {
-    hands = new Hands({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-    });
-
-    hands.setOptions({
-      maxNumHands: 1,
-      modelComplexity: 1,
-      minDetectionConfidence: 0.7,
-      minTrackingConfidence: 0.5
-    });
-
-    hands.onResults((results) => {
-      if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
-        statusEl.innerText = '✋ 请伸出手';
-        resetFist();
-        return;
-      }
-
-      const landmarks = results.multiHandLandmarks[0];
-      const wrist = landmarks[0];
-      const tipIndices = [4, 8, 12, 16, 20];
-      let foldedCount = 0;
-
-      for (let idx of tipIndices) {
-        const dx = landmarks[idx].x - wrist.x;
-        const dy = landmarks[idx].y - wrist.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 0.13) foldedCount++;
-      }
-
-      const isFistNow = (foldedCount >= 4);
-
-      if (isFistNow) {
-        if (!isFist) {
-          isFist = true;
-          fistStartTime = Date.now();
-          statusEl.innerText = '🤛 握拳中...';
-        } else if (!isProcessing) {
-          const duration = (Date.now() - fistStartTime) / 1000;
-          if (duration >= 3) {
-            pickCard();
-            resetFist();
-            return;
-          }
-          statusEl.innerText = `🤛 保持握拳 ${duration.toFixed(0)}/3 秒`;
-        }
-        // 更新粒子聚拢目标（手腕位置映射到画布坐标）
-        fistTargetX = wrist.x * particleCanvas.width;
-        fistTargetY = wrist.y * particleCanvas.height;
-      } else {
-        statusEl.innerText = '🖐 张开手';
-        resetFist();
-      }
-    });
-  } else {
-    console.warn('Hands 类未定义，手势识别不可用');
-  }
-} catch (e) {
-  console.error('Hands 初始化失败:', e);
-  hands = null;
-}
-
-function resetFist() {
-  isFist = false;
-  fistStartTime = 0;
-  fistTargetX = -1;
-  fistTargetY = -1;
-}
-
-// ============================================
 //  粒子系统 (Canvas + RAF 驱动)
 // ============================================
 const particleCanvas = document.getElementById('particleCanvas');
 const pctx = particleCanvas.getContext('2d');
 let bgParticles = [];
 let burstParticles = [];
-let fistTargetX = -1;
-let fistTargetY = -1;
 
 function resizeParticleCanvas() {
   particleCanvas.width = window.innerWidth;
@@ -946,16 +1013,15 @@ function resizeParticleCanvas() {
 window.addEventListener('resize', resizeParticleCanvas);
 resizeParticleCanvas();
 
-// 背景漂浮粒子
 function createBgParticles() {
   bgParticles = [];
   const count = 70;
   const colors = [
-    'rgba(201,168,76,',   // gold
-    'rgba(168,85,247,',    // purple
-    'rgba(232,212,154,',   // light gold
-    'rgba(139,92,246,',    // violet
-    'rgba(250,204,80,',    // warm gold
+    'rgba(201,168,76,',
+    'rgba(168,85,247,',
+    'rgba(232,212,154,',
+    'rgba(139,92,246,',
+    'rgba(250,204,80,',
   ];
   for (let i = 0; i < count; i++) {
     bgParticles.push({
@@ -966,21 +1032,19 @@ function createBgParticles() {
       speedY: -(Math.random() * 0.35 + 0.08),
       color: colors[Math.floor(Math.random() * colors.length)],
       alpha: Math.random() * 0.6 + 0.2,
-      alphaSpeed: (Math.random() - 0.5) * 0.012,
       twinklePhase: Math.random() * Math.PI * 2,
     });
   }
 }
 
-// 爆发粒子（从牌面位置爆出）
 function spawnBurst(x, y, count) {
   const colors = [
-    'rgba(201,168,76,',   // gold
-    'rgba(168,85,247,',    // purple
-    'rgba(255,255,220,',   // white-gold
-    'rgba(232,212,154,',   // light gold
-    'rgba(139,92,246,',    // violet
-    'rgba(250,204,80,',    // warm gold
+    'rgba(201,168,76,',
+    'rgba(168,85,247,',
+    'rgba(255,255,220,',
+    'rgba(232,212,154,',
+    'rgba(139,92,246,',
+    'rgba(250,204,80,',
   ];
   for (let i = 0; i < count; i++) {
     const angle = Math.random() * Math.PI * 2;
@@ -999,38 +1063,19 @@ function spawnBurst(x, y, count) {
   }
 }
 
-// 粒子动画循环
 function animateParticles() {
   pctx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
 
   // 背景粒子
   for (let p of bgParticles) {
-    // 握拳聚拢效果
-    if (fistTargetX > 0 && fistTargetY > 0) {
-      const dx = fistTargetX - p.x;
-      const dy = fistTargetY - p.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const attractRadius = 180;
-      if (dist < attractRadius) {
-        const force = (1 - dist / attractRadius) * 0.04;
-        p.speedX += dx / dist * force;
-        p.speedY += dy / dist * force;
-      }
-      // 阻尼
-      p.speedX *= 0.995;
-      p.speedY *= 0.995;
-    }
-
     p.x += p.speedX;
     p.y += p.speedY;
 
-    // 边界循环
     if (p.y < -10) { p.y = particleCanvas.height + 10; p.x = Math.random() * particleCanvas.width; }
     if (p.y > particleCanvas.height + 10) { p.y = -10; p.x = Math.random() * particleCanvas.width; }
     if (p.x < -10) p.x = particleCanvas.width + 10;
     if (p.x > particleCanvas.width + 10) p.x = -10;
 
-    // 闪烁
     p.twinklePhase += 0.02;
     const twinkleAlpha = p.alpha + Math.sin(p.twinklePhase) * 0.15;
 
@@ -1039,7 +1084,6 @@ function animateParticles() {
     pctx.fillStyle = p.color + Math.min(twinkleAlpha, 1) + ')';
     pctx.fill();
 
-    // 光晕
     if (p.size > 1.8) {
       pctx.beginPath();
       pctx.arc(p.x, p.y, p.size * 2.2, 0, Math.PI * 2);
@@ -1067,7 +1111,6 @@ function animateParticles() {
     pctx.fillStyle = p.color + fadeRatio + ')';
     pctx.fill();
 
-    // 粒子尾迹
     pctx.beginPath();
     pctx.arc(p.x - p.vx * 1.5, p.y - p.vy * 1.5, p.size * 0.5 * fadeRatio, 0, Math.PI * 2);
     pctx.fillStyle = p.color + (fadeRatio * 0.3) + ')';
@@ -1077,62 +1120,17 @@ function animateParticles() {
   requestAnimationFrame(animateParticles);
 }
 
+// 粒子系统保底启动
 try { createBgParticles(); } catch (e) { console.error('背景粒子创建失败:', e); }
 try { animateParticles(); } catch (e) { console.error('粒子动画启动失败:', e); }
 
 // ============================================
-//  启动
+//  启动 — 零外部依赖，立即渲染
 // ============================================
-async function startCamera() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { width: 640, height: 480 }
-    });
-    video.srcObject = stream;
-    await video.play();
-    return true;
-  } catch (e) {
-    console.warn('摄像头启动失败:', e);
-    statusEl.innerText = '📡 点击牌面抽牌';
-    return false;
-  }
-}
-
-function bindManualClick() {
-  cardSlots.forEach(slot => {
-    slot.addEventListener('click', () => {
-      if (isProcessing) return;
-      if (slot.classList.contains('flipped')) return;
-      pickCard();
-    });
-  });
-}
-
-async function init() {
-  // 1. 牌组最先渲染，任何情况下都执行
+(function init() {
   buildCards();
-
-  // 2. 摄像头尝试启动，失败也不影响后续
-  const cameraOk = await startCamera();
-
-  // 3. 手势识别：可用则启动，不可用则降级为手动点击
-  if (hands && cameraOk) {
-    const sendFrame = async () => {
-      if (video.readyState >= 2) {
-        try { await hands.send({ image: video }); } catch (e) {}
-      }
-      requestAnimationFrame(sendFrame);
-    };
-    sendFrame();
-    statusEl.innerText = '✅ 就绪 · 握拳3秒抽牌';
-  } else {
-    // 降级：点击牌面抽牌
-    bindManualClick();
-    statusEl.innerText = '📡 点击牌面抽牌';
-  }
-}
-
-init();
+  statusEl.innerText = '✨ 就绪';
+})();
 </script>
 </body>
 </html>
