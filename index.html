@@ -69,6 +69,16 @@ body{
   opacity:0;pointer-events:none;z-index:-1;
 }
 
+/* ==================== Particle Canvas ==================== */
+#particle-canvas{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  pointer-events:none;z-index:3;
+}
+
+/* ==================== Motion Blur for Fast Swipe ==================== */
+.carousel-card.swiping{filter:blur(2px);transition:filter .15s}
+.carousel-card.swiping-fast{filter:blur(4px) brightness(1.3);transition:filter .1s}
+
 /* ==================== Main App Container ==================== */
 #app{position:relative;z-index:2;max-width:900px;margin:0 auto;padding:20px 16px 40px}
 
@@ -183,43 +193,96 @@ body{
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   overflow:hidden;
 }
-/* Card Back */
+/* Card Back - Gothic Style */
 .card-back{
-  background:linear-gradient(135deg,#1a1040,#0d0d2a);
-  border:2px solid rgba(212,175,55,.3);
-  box-shadow:0 4px 24px rgba(0,0,0,.5);
+  background:linear-gradient(160deg,#1a0e08,#2d1a0e 25%,#1a1028 50%,#0d0820 80%,#0a0618 100%);
+  border:2px solid #8b6914;
+  box-shadow:
+    0 0 0 3px #5c3d0e,
+    0 0 0 5px rgba(180,130,40,.25),
+    0 0 0 8px #2d1a08,
+    0 4px 30px rgba(0,0,0,.6),
+    inset 0 0 40px rgba(180,130,40,.08);
   z-index:1;
+  position:relative;
+}
+/* Four corner ornaments */
+.card-back::before{
+  content:'✧';position:absolute;top:8px;left:12px;font-size:10px;color:rgba(212,175,55,.35);
+}
+.card-back::after{
+  content:'✧';position:absolute;top:8px;right:12px;font-size:10px;color:rgba(212,175,55,.35);
 }
 .card-back-pattern{
-  width:80%;height:80%;border:1px solid rgba(212,175,55,.15);
-  border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;
-}
-.card-back-pattern .eye{
-  width:36px;height:36px;border:1px solid rgba(212,175,55,.4);border-radius:50%;
+  width:82%;height:82%;border:1px solid rgba(180,130,40,.2);
+  border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;
   position:relative;
+  background:radial-gradient(circle at center,rgba(180,130,40,.04) 0%,transparent 60%);
+}
+/* Inner border ring */
+.card-back-pattern::before{
+  content:'';position:absolute;inset:6px;border:1px solid rgba(180,130,40,.08);border-radius:2px;
+}
+/* Corner rosettes */
+.card-back-pattern::after{
+  content:'❖';position:absolute;bottom:8px;left:50%;transform:translateX(-50%);font-size:8px;color:rgba(212,175,55,.2);
+}
+/* Eye of Providence / Hexagram center */
+.card-back-pattern .eye{
+  width:40px;height:40px;border:1.5px solid rgba(180,130,40,.35);border-radius:50%;
+  position:relative;margin-bottom:6px;
+  box-shadow:0 0 16px rgba(180,130,40,.12),inset 0 0 12px rgba(180,130,40,.06);
+}
+.card-back-pattern .eye::before{
+  content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(45deg);
+  width:24px;height:24px;border:1px solid rgba(180,130,40,.2);
 }
 .card-back-pattern .eye::after{
   content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-  width:8px;height:8px;background:var(--mystic-gold);border-radius:50%;
-  box-shadow:0 0 12px rgba(212,175,55,.6);
+  width:10px;height:10px;background:radial-gradient(circle,#d4af37,#8b6914);border-radius:50%;
+  box-shadow:0 0 18px rgba(212,175,55,.5),0 0 30px rgba(212,175,55,.2);
+}
+/* Hexagram inner geometry */
+.card-back-pattern .hexagram{
+  position:absolute;top:calc(50% - 14px);left:50%;transform:translate(-50%,-50%);
+  width:28px;height:28px;opacity:.25;
+  border:1px solid rgba(180,130,40,.3);
+  clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
 }
 .card-back-pattern .line{
-  width:60%;height:1px;background:rgba(212,175,55,.2);margin:8px 0;
+  width:50%;height:1px;background:linear-gradient(90deg,transparent,rgba(180,130,40,.25),transparent);margin:5px 0;
 }
-/* Card Front */
+.card-back-pattern .line:nth-child(2){width:30%}
+.card-back-pattern .line:nth-child(4){width:40%}
+/* Card Front - Gothic style */
 .card-front{
-  background:linear-gradient(135deg,#1e1048,#0a0820);
-  border:2px solid var(--mystic-gold);
-  box-shadow:0 4px 30px rgba(212,175,55,.2);
+  background:linear-gradient(160deg,#1a0e08,#2d1a0e 25%,#1a1028 50%,#0d0820 80%,#0a0618 100%);
+  border:2px solid #8b6914;
+  box-shadow:
+    0 0 0 3px #5c3d0e,
+    0 0 0 5px rgba(180,130,40,.25),
+    0 0 0 8px #2d1a08,
+    0 6px 36px rgba(0,0,0,.7),
+    inset 0 0 40px rgba(180,130,40,.06);
   transform:rotateY(180deg);
-  padding:12px;
+  padding:10px;
 }
-.card-front .cf-symbol{font-size:36px;margin-bottom:4px}
+.card-front::before{
+  content:'✦';position:absolute;bottom:8px;left:12px;font-size:10px;color:rgba(212,175,55,.25);
+}
+.card-front::after{
+  content:'✦';position:absolute;bottom:8px;right:12px;font-size:10px;color:rgba(212,175,55,.25);
+}
+.card-front .cf-symbol{font-size:34px;margin-bottom:4px;text-shadow:0 0 12px rgba(212,175,55,.3)}
 .card-front .cf-name{
-  font-family:'Cinzel',serif;font-size:12px;color:var(--mystic-gold);
-  text-align:center;letter-spacing:.1em;
+  font-family:'Cinzel',serif;font-size:11px;color:#c9a84c;
+  text-align:center;letter-spacing:.12em;text-shadow:0 0 8px rgba(201,168,76,.2);
 }
-.card-front .cf-nameZh{font-size:14px;color:#ddd;margin-top:4px}
+.card-front .cf-nameZh{font-size:13px;color:#d4c5a0;margin-top:4px;letter-spacing:.06em}
+.card-front .cf-meaning-preview{
+  font-size:8px;color:rgba(180,150,120,.4);margin-top:6px;text-align:center;
+  line-height:1.4;max-height:36px;overflow:hidden;padding:0 4px;
+}
 
 /* Flipped card */
 .carousel-card.flipped .carousel-card-inner{animation:cardFlip .8s ease forwards}
@@ -431,6 +494,8 @@ body{
   <div class="fog-blob" style="width:800px;height:800px;bottom:-200px;right:-200px"></div>
 </div>
 
+<!-- Particle Canvas -->
+<canvas id="particle-canvas"></canvas>
 <!-- Hidden Camera -->
 <video id="cam" autoplay playsinline></video>
 
@@ -584,6 +649,8 @@ const ALL_CARDS = [...ARCANA, ...WANDS, ...CUPS, ...SWORDS, ...PENTACLES];
 const state = {
   phase: 'welcome', // welcome | select | reveal
   activeIndex: Math.floor(ALL_CARDS.length / 2),
+  displayOffset: Math.floor(ALL_CARDS.length / 2), // float for smooth scrolling
+  velocity: 0,
   question: '',
   isFlipped: false,
   flippedCard: null,
@@ -595,7 +662,12 @@ const state = {
   fistStartTime: null,
   lastFistSeenTime: null,
   lastHandX: null,
+  lastHandTime: null,
   flipExecuted: false,
+  // Particle system
+  particles: [],
+  handPos: null, // {x,y} normalized 0-1
+  handVisible: false,
 };
 
 // ==================== DOM Refs ====================
@@ -677,10 +749,10 @@ function renderDeckRows() {
 function renderCarousel() {
   carouselTrack.innerHTML = '';
   const total = ALL_CARDS.length;
-  const active = state.activeIndex;
+  const displayOffset = state.displayOffset;
 
   for (let i = 0; i < total; i++) {
-    let offset = i - active;
+    let offset = i - displayOffset;
 
     // Wrap-around offset
     if (offset > total / 2) offset -= total;
@@ -700,7 +772,7 @@ function renderCarousel() {
     const sc = Math.max(0.25, 1.35 - Math.abs(offset) * 0.2);
     const op = Math.max(0, 1 - Math.abs(offset) * 0.28);
     const zi = Math.round(100 - Math.abs(offset) * 12);
-    const isCenter = offset === 0;
+    const isCenter = Math.abs(offset) < 0.5;
 
     el.style.cssText = `transform:translateX(${tx}px) translateZ(${tz}px) rotateY(${rotation}deg) scale(${sc});opacity:${op};z-index:${zi};`;
 
@@ -735,7 +807,22 @@ function renderCarousel() {
 function setActiveCard(id) {
   if (state.phase !== 'select') return;
   state.activeIndex = id;
+  state.displayOffset = id;
+  state.velocity = 0;
   updateSelectionUI();
+  // Motion blur on fast switch
+  applySwipeBlur();
+}
+
+function applySwipeBlur() {
+  const cards = carouselTrack.querySelectorAll('.carousel-card');
+  const absV = Math.abs(state.velocity);
+  cards.forEach(c => {
+    c.classList.remove('swiping','swiping-fast');
+    if (absV > 0.08) c.classList.add('swiping-fast');
+    else if (absV > 0.03) c.classList.add('swiping');
+    setTimeout(() => c.classList.remove('swiping','swiping-fast'), 200);
+  });
 }
 
 function updateSelectionUI() {
@@ -778,6 +865,15 @@ function executeFlip() {
   const card = ALL_CARDS[state.activeIndex];
   state.flippedCard = card;
   state.flippedCardId = card.id;
+
+  // Particle explosion at card center
+  const cardEl = carouselTrack.querySelector('.active-card');
+  if (cardEl) {
+    const rect = cardEl.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    spawnExplosion(cx, cy);
+  }
 
   // Flip the active card in the carousel
   const activeEl = carouselTrack.querySelector('.active-card');
@@ -1018,14 +1114,21 @@ async function startDivination() {
   }
 
   state.activeIndex = Math.floor(ALL_CARDS.length / 2);
+  state.displayOffset = state.activeIndex;
+  state.velocity = 0;
   state.isFlipped = false;
   state.flipExecuted = false;
   state.fistStartTime = null;
   state.lastFistSeenTime = null;
   state.lastHandX = null;
+  state.lastHandTime = null;
+  state.particles = [];
+  state.handPos = null;
+  state.handVisible = false;
 
   showPhase('select');
   updateSelectionUI();
+  startAnimationLoop();
   selectionStatus.textContent = state.gestureActive ? '挥动手部移动 · 握拳3秒翻开命运' : '点击牌面选中 · 握拳3秒或双击翻开命运';
 }
 
@@ -1037,9 +1140,15 @@ function resetApp() {
   state.flippedCard = null;
   state.chatHistory = [];
   state.activeIndex = Math.floor(ALL_CARDS.length / 2);
+  state.displayOffset = state.activeIndex;
+  state.velocity = 0;
   state.fistStartTime = null;
   state.lastFistSeenTime = null;
   state.lastHandX = null;
+  state.lastHandTime = null;
+  state.particles = [];
+  state.handPos = null;
+  state.handVisible = false;
   questionInput.value = '';
   chatMessages.innerHTML = '';
   errorArea.innerHTML = '';
@@ -1048,9 +1157,10 @@ function resetApp() {
   ascendBtn.disabled = false;
   initStatus.textContent = '正在引导星辰之力...';
   showPhase('welcome');
+  if (animFrameId) { cancelAnimationFrame(animFrameId); animFrameId = null; }
 }
 
-// ==================== MediaPipe Gesture ====================
+// ==================== MediaPipe Gesture (Momentum-Based) ====================
 function initGesture() {
   if (typeof Hands === 'undefined') {
     console.log('MediaPipe Hands 未加载，使用触摸交互');
@@ -1082,6 +1192,10 @@ function initGesture() {
         const x = hand[0].x;
         const isF = checkIsFist(hand);
 
+        // Update hand position for particles
+        state.handPos = { x: hand[9].x, y: hand[9].y }; // middle finger MCP
+        state.handVisible = true;
+
         if (isF) {
           state.lastFistSeenTime = now;
           if (state.fistStartTime === null) {
@@ -1091,7 +1205,15 @@ function initGesture() {
           const progress = Math.min(elapsed / FIST_HOLD, 1);
           fistProgressFill.style.width = `${progress * 100}%`;
 
+          // Drift toward center while fist held
+          const targetOffset = Math.round(state.displayOffset);
+          state.displayOffset += (targetOffset - state.displayOffset) * 0.15;
+          state.velocity *= 0.85;
+
           if (elapsed >= FIST_HOLD) {
+            state.activeIndex = Math.round(state.displayOffset);
+            state.displayOffset = state.activeIndex;
+            state.velocity = 0;
             executeFlip();
           }
         } else {
@@ -1101,27 +1223,31 @@ function initGesture() {
             state.lastFistSeenTime = null;
             fistProgressFill.style.width = '0';
 
-            // Hand wave navigation
-            if (state.lastHandX !== null && state.lastHandX !== undefined) {
+            // Momentum-based hand wave navigation
+            if (state.lastHandX !== null && state.lastHandX !== undefined &&
+                state.lastHandTime !== null && state.lastHandTime !== undefined) {
               const delta = x - state.lastHandX;
-              if (Math.abs(delta) > 0.025) {
-                const move = delta > 0 ? -1 : 1;
-                let next = state.activeIndex + move;
-                if (next < 0) next = ALL_CARDS.length - 1;
-                if (next >= ALL_CARDS.length) next = 0;
-                state.activeIndex = next;
-                updateSelectionUI();
+              const dt = Math.max(now - state.lastHandTime, 16) / 1000; // seconds
+              if (Math.abs(delta) > 0.005 && dt > 0) {
+                const instantV = delta / dt; // units/sec in normalized coords
+                // Flip direction: right hand moves right = cards move left
+                state.velocity = state.velocity * 0.7 + (-instantV) * 0.3 * 78; // 78 cards range
+                state.displayOffset += state.velocity * dt;
               }
             }
           }
         }
         state.lastHandX = x;
+        state.lastHandTime = now;
       } else {
+        state.handVisible = false;
+        state.handPos = null;
         const timeSinceFist = state.lastFistSeenTime ? now - state.lastFistSeenTime : Infinity;
         if (timeSinceFist > FIST_LOSS_TOLERANCE) {
           state.fistStartTime = null;
           state.lastFistSeenTime = null;
           state.lastHandX = null;
+          state.lastHandTime = null;
           fistProgressFill.style.width = '0';
         }
       }
@@ -1135,6 +1261,213 @@ function initGesture() {
     console.log('手势引擎初始化失败:', e.message);
     state.gestureModelReady = true;
     initStatus.textContent = '星辰之力已就绪 · 触摸交互';
+  }
+}
+
+// ==================== Animation Loop (Momentum + Particles) ====================
+let animFrameId = null;
+let lastAnimTime = 0;
+let canvasCtx = null;
+
+function initCanvas() {
+  const canvas = document.getElementById('particle-canvas');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  canvasCtx = canvas.getContext('2d');
+  window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  });
+}
+
+function startAnimationLoop() {
+  if (animFrameId) return;
+  initCanvas();
+  lastAnimTime = performance.now();
+  animFrameId = requestAnimationFrame(animLoop);
+}
+
+function animLoop(now) {
+  const dt = Math.min((now - lastAnimTime) / 1000, 0.1); // cap at 100ms
+  lastAnimTime = now;
+
+  // === Momentum decay when no hand ===
+  if (state.phase === 'select' && !state.flipExecuted && !state.handVisible && state.lastFistSeenTime === null) {
+    if (Math.abs(state.velocity) > 0.003) {
+      state.velocity *= 0.92;
+      state.displayOffset += state.velocity * dt;
+      // Wrap around
+      const total = ALL_CARDS.length;
+      while (state.displayOffset < 0) state.displayOffset += total;
+      while (state.displayOffset >= total) state.displayOffset -= total;
+      
+      const newActive = Math.round(state.displayOffset);
+      if (newActive !== state.activeIndex) {
+        state.activeIndex = newActive;
+        updateSelectionUI();
+      } else {
+        renderCarousel();
+      }
+      if (Math.abs(state.velocity) > 0.03) applySwipeBlur();
+    } else if (Math.abs(state.velocity) > 0) {
+      // Snap to nearest integer
+      state.velocity = 0;
+      const target = Math.round(state.displayOffset);
+      state.displayOffset = target;
+      state.activeIndex = target;
+      updateSelectionUI();
+    }
+  }
+
+  // === Particles ===
+  updateAndDrawParticles(dt, now);
+
+  animFrameId = requestAnimationFrame(animLoop);
+}
+
+// ==================== Particle System ====================
+function spawnGlowParticles(cx, cy, count) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const radius = 15 + Math.random() * 25;
+    state.particles.push({
+      x: cx + Math.cos(angle) * radius * 0.3,
+      y: cy + Math.sin(angle) * radius * 0.3,
+      vx: Math.cos(angle) * (0.5 + Math.random()),
+      vy: Math.sin(angle) * (0.5 + Math.random()),
+      life: 0.6 + Math.random() * 0.8,
+      maxLife: 0.6 + Math.random() * 0.8,
+      color: Math.random() < 0.7 ? '212,175,55' : '180,130,40',
+      size: 1 + Math.random() * 3,
+      type: 'glow',
+    });
+  }
+}
+
+function spawnTrailParticle(cx, cy, vx, vy) {
+  state.particles.push({
+    x: cx, y: cy,
+    vx: vx * 0.3 + (Math.random() - 0.5) * 2,
+    vy: vy * 0.3 + (Math.random() - 0.5) * 2,
+    life: 0.6 + Math.random() * 1.4,
+    maxLife: 0.6 + Math.random() * 1.4,
+    color: '212,175,55',
+    size: 1.5 + Math.random() * 3,
+    type: 'trail',
+  });
+}
+
+function spawnExplosion(cx, cy) {
+  const colors = ['212,175,55','180,130,40','75,0,130','147,112,219','255,215,0'];
+  for (let i = 0; i < 60; i++) {
+    const angle = (Math.PI * 2 * i) / 60 + (Math.random() - 0.5) * 0.4;
+    const speed = 3 + Math.random() * 8;
+    state.particles.push({
+      x: cx, y: cy,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 0.8 + Math.random() * 1.2,
+      maxLife: 0.8 + Math.random() * 1.2,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      size: 2 + Math.random() * 4,
+      type: 'explosion',
+    });
+  }
+}
+
+function updateAndDrawParticles(dt, now) {
+  const ctx = canvasCtx;
+  if (!ctx) return;
+  const W = ctx.canvas.width;
+  const H = ctx.canvas.height;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // === Spawn hand glow particles ===
+  if (state.phase === 'select' && state.handVisible && state.handPos) {
+    const hx = state.handPos.x * W;
+    const hy = state.handPos.y * H;
+    
+    // Maintain ~30 glow particles around hand
+    const glowCount = state.particles.filter(p => p.type === 'glow').length;
+    if (glowCount < 30) {
+      spawnGlowParticles(hx, hy, 30 - glowCount);
+    }
+
+    // Trail particles when hand moves
+    if (Math.abs(state.velocity) > 0.02) {
+      const trailCount = Math.min(Math.floor(Math.abs(state.velocity) * 3), 5);
+      for (let i = 0; i < trailCount; i++) {
+        spawnTrailParticle(hx, hy, 0, (Math.random() - 0.5) * 4);
+      }
+    }
+
+    // Fist gathering: particles converge toward hand
+    if (state.fistStartTime !== null) {
+      const fistProgress = Math.min((now - state.fistStartTime) / FIST_HOLD, 0.95);
+      for (const p of state.particles) {
+        if (p.type === 'glow') {
+          const dx = hx - p.x;
+          const dy = hy - p.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist > 5) {
+            p.vx += dx * 0.02 * (1 + fistProgress * 3);
+            p.vy += dy * 0.02 * (1 + fistProgress * 3);
+          }
+          // Brighten as fist tightens
+          p.color = fistProgress > 0.5 ? '255,215,0' : '212,175,55';
+          p.size += fistProgress * 0.02;
+        }
+      }
+    }
+  }
+
+  // Update all particles
+  for (let i = state.particles.length - 1; i >= 0; i--) {
+    const p = state.particles[i];
+    p.life -= dt;
+    if (p.life <= 0) {
+      state.particles.splice(i, 1);
+      continue;
+    }
+    p.x += p.vx;
+    p.y += p.vy;
+    if (p.type === 'glow') {
+      // Orbit around hand
+      if (state.handPos && state.handVisible) {
+        const hx = state.handPos.x * W;
+        const hy = state.handPos.y * H;
+        const dx = hx - p.x;
+        const dy = hy - p.y;
+        const dist = Math.hypot(dx, dy);
+        const targetDist = 20 + (p.maxLife - p.life) * 15;
+        if (Math.abs(dist - targetDist) > 2) {
+          p.vx += dx * 0.005;
+          p.vy += dy * 0.005;
+        }
+        p.vx += (Math.random() - 0.5) * 0.8;
+        p.vy += (Math.random() - 0.5) * 0.8;
+        p.vx *= 0.94;
+        p.vy *= 0.94;
+      }
+    }
+    // Fade
+    const alpha = Math.max(0, p.life / p.maxLife);
+    
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * (0.6 + alpha * 0.4), 0, Math.PI * 2);
+    ctx.fillStyle = p.type === 'explosion'
+      ? `rgba(${p.color},${alpha})`
+      : `rgba(${p.color},${alpha * 0.7})`;
+    ctx.fill();
+    
+    // Glow for glow/trail particles
+    if (p.type !== 'explosion' && p.life / p.maxLife > 0.3) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * 1.8, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${p.color},${alpha * 0.15})`;
+      ctx.fill();
+    }
   }
 }
 
